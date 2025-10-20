@@ -20,7 +20,7 @@ class WelcomeScreen extends StatelessWidget {
             // La imagen se posiciona en la parte inferior de la pantalla
             bottom: 0,
             child: Image.asset(
-              'assets/images/ej.png', // Usa la imagen que hemos estado referenciando
+              'assets/images/welcome.png', // Usa la imagen que hemos estado referenciando
               width: size.width,
               // Ajusta la altura de la imagen para que cubra la parte inferior como en el diseño
               height: size.height * 0.75,

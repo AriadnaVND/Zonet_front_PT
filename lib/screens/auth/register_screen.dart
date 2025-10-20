@@ -133,7 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Imagen de los animales
                   Positioned.fill(
                     child: Image.asset(
-                      'assets/images/registro2.jpeg', // Reemplaza si la ruta es diferente
+                      'assets/images/register.png', // Reemplaza si la ruta es diferente
                       fit: BoxFit.cover,
                     ),
                   ),

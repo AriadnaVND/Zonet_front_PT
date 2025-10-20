@@ -125,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Imagen de la persona con el perro
                   Positioned.fill(
                     child: Image.asset(
-                      'assets/images/ej.png', // Mantenemos esta ruta por consistencia
+                      'assets/images/login.png', // Mantenemos esta ruta por consistencia
                       fit: BoxFit.cover,
                     ),
                   ),
