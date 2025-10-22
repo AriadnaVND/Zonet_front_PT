@@ -1,5 +1,6 @@
 // lib/services/auth_service.dart
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
@@ -21,6 +22,9 @@ class AuthService {
       return 'http://$_iosSimulatorUrl';
     }
   }
+
+  String getPetBaseUrl() => '${_getBaseUrl()}/api/pets';
+  String getSubscriptionsBaseUrl() => '${_getBaseUrl()}/api/subscriptions';
 
   final String _registerEndpoint = '/api/auth/register';
   final String _loginEndpoint = '/api/auth/login';
@@ -69,6 +73,99 @@ class AuthService {
     }
   }
 
+  // 2. Registro Mascota y Plan (Multipart)
+  // Endpoint: POST /api/pets/{userId}/register
+  Future<Map<String, dynamic>> registerPetAndPlan(
+    int userId,
+    String petName,
+    String planType,
+    File photo,
+  ) async {
+    final url = Uri.parse('${getPetBaseUrl()}/$userId/register');
+
+    var request = http.MultipartRequest('POST', url);
+
+    request.fields['petName'] = petName;
+    request.fields['planType'] = planType;
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'photo',
+        photo.path,
+        filename: 'pet_photo_$userId.jpg',
+      ),
+    );
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    // 💡 CORRECCIÓN CLAVE: Asegurarse de que el cuerpo NO esté vacío antes de decodificar.
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.body.isNotEmpty) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      } else {
+        // El backend debería devolver un cuerpo, pero si está vacío, devolvemos un JSON de éxito.
+        return {
+          'message':
+              'Mascota registrada, pero el servidor no devolvió detalles.',
+          'planType': planType,
+        };
+      }
+    } else {
+      // Manejar el error de forma explícita
+      String errorMessage = 'Fallo en la conexión.';
+      try {
+        final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+        errorMessage =
+            errorBody['message'] ??
+            'Fallo en el registro. Código: ${response.statusCode}';
+      } catch (_) {
+        errorMessage =
+            'Error: Código ${response.statusCode}. Respuesta no es JSON.';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<Map<String, dynamic>> selectPlan(int userId, String planType) async {
+    final url = Uri.parse('${getSubscriptionsBaseUrl()}/$userId');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{'planType': planType}),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (response.body.isNotEmpty) {
+          return jsonDecode(utf8.decode(response.bodyBytes));
+        } else {
+          return {
+            'message': 'Plan procesado, pero el servidor no devolvió detalles.',
+            'planType': planType,
+          };
+        }
+      } else {
+        String errorMessage = 'Fallo al procesar el plan.';
+        try {
+          final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+          errorMessage =
+              errorBody['message'] ??
+              'Fallo en la API. Código: ${response.statusCode}';
+        } catch (_) {
+          errorMessage =
+              'Error: Código ${response.statusCode}. Respuesta no es JSON.';
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      throw Exception('Fallo de conexión al procesar el plan: ${e.toString()}');
+    }
+  }
+
   // ---------------------------------------------------------------------
   // Nuevo Método de Login
   // ---------------------------------------------------------------------
@@ -77,7 +174,7 @@ class AuthService {
   /// Lanza una excepción si la autenticación falla o hay un error de conexión.
   Future<User> login(String email, String password) async {
     final url = Uri.parse('${_getBaseUrl()}$_loginEndpoint');
-    
+
     try {
       final response = await http.post(
         url,
@@ -97,7 +194,9 @@ class AuthService {
       } else {
         // Login fallido (ej. contraseña incorrecta, usuario no encontrado)
         final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-        final errorMessage = errorBody['message'] ?? 'Credenciales incorrectas o error de servidor.';
+        final errorMessage =
+            errorBody['message'] ??
+            'Credenciales incorrectas o error de servidor.';
         throw Exception(errorMessage);
       }
     } catch (e) {

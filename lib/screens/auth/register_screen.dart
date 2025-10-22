@@ -1,8 +1,7 @@
-// lib/screens/auth/register_screen.dart
-
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'login_screen.dart';
+import 'add_pet_photo_screen.dart'; 
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -46,18 +45,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (mounted) {
         _showSnackbar(
-          '¡Registro exitoso! Bienvenido/a ${newUser.name}.',
+          '¡Usuario registrado! Ahora, configuremos tu mascota.',
           isError: false,
         );
-        // Navegar a la pantalla de Login después del registro exitoso
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        // Navegar a la pantalla de la mascota
+        if (newUser.id != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddPetPhotoScreen(
+                userId: newUser.id!,
+                userName: newUser.name ?? 'Usuario',
+              ),
+            ),
+          );
+        } else {
+          _showSnackbar(
+            'Error: El servidor no devolvió el ID del usuario.',
+            isError: true,
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        // Extrae el mensaje de error para mostrarlo al usuario
         String errorMessage = e.toString().replaceFirst('Exception: ', '');
         _showSnackbar(errorMessage, isError: true);
       }
@@ -115,7 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    const Color primaryColor = Color(0xFF00ADB5); // Color turquesa del diseño
+    const Color primaryColor = Color(0xFF00ADB5); 
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -130,14 +140,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: [
-                  // Imagen de los animales
                   Positioned.fill(
                     child: Image.asset(
-                      'assets/images/register.png', // Reemplaza si la ruta es diferente
+                      'assets/images/register.png', 
                       fit: BoxFit.cover,
                     ),
                   ),
-                  // Curva blanca
                   Positioned(
                     bottom: -1,
                     child: Container(
@@ -167,7 +175,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    // Título "Comencemos!"
                     const Center(
                       child: Text(
                         'Comencemos!',
@@ -179,8 +186,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const Divider(color: Colors.grey, thickness: 1, height: 30),
-
-                    // Subtítulo "Crear Una Cuenta:"
                     const Padding(
                       padding: EdgeInsets.only(bottom: 15.0),
                       child: Text(
@@ -192,7 +197,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
 
-                    // Campos de texto (incluyen validación básica)
+                    // Campos de texto (igual que antes)
                     _buildTextField(
                       controller: nameController,
                       hintText: 'Nombre',
@@ -262,7 +267,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           onTap: () {
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                              MaterialPageRoute(
+                                  builder: (context) => const LoginScreen()),
                             );
                           },
                           child: const Text(
