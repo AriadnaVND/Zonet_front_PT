@@ -2,8 +2,9 @@
 
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-// Importa la pantalla de registro para la navegación
+import '../../services/user_service.dart';
 import 'register_screen.dart';
+import '../user_free/dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
   // El diseño muestra 'Nombre', pero para el Login se debe usar 'Email' (como el AuthRequest)
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -43,9 +45,55 @@ class _LoginScreenState extends State<LoginScreen> {
         passwordController.text,
       );
 
+      if (user.id == null) {
+        throw Exception('ID de usuario no válido recibido del servidor.');
+      }
+
+      final pet = await _userService.fetchPetByUserId(user.id!.toInt());
+
       if (mounted) {
         _showSnackbar('¡Bienvenido de nuevo, ${user.name}!', isError: false);
-        // TODO: Navegar al Home/Dashboard y guardar la sesión del usuario
+
+        // 🟢 LÓGICA DE RESTRICCIÓN DE ZONAS (Basada en SafeZoneService.java)
+        final bool isFree = user.plan?.toUpperCase() == 'FREE';
+        // Los usuarios Free solo pueden tener 1 zona segura.
+        final int safeZoneLimit = isFree ? 1 : 999;
+
+        if (isFree) {
+          // 🟢 Navegación al Dashboard Free (con datos jalados)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DashboardScreen(
+                user: user,
+                pet: pet,
+                safeZoneCount: safeZoneLimit,
+              ),
+            ),
+          );
+        } else if (user.plan?.toUpperCase() == 'PREMIUM') {
+          // 🟢 Navegación al Dashboard Premium
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const Scaffold(
+                body: Center(child: Text("Home Premium Placeholder")),
+              ),
+            ),
+          );
+        } else {
+          // Fallback
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DashboardScreen(
+                user: user,
+                pet: pet,
+                safeZoneCount: 1,
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

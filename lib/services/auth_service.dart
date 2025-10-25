@@ -29,6 +29,14 @@ class AuthService {
   final String _registerEndpoint = '/api/auth/register';
   final String _loginEndpoint = '/api/auth/login';
 
+  // Metodo para construir URL completas de imágenes
+  String buildFullImageUrl(String photoUrlPath) {
+    if (photoUrlPath.startsWith('http')) {
+      return photoUrlPath;
+    }
+    return _getBaseUrl() + photoUrlPath;
+  }
+
   // ---------------------------------------------------------------------
   // Método de Registro
   // ---------------------------------------------------------------------
