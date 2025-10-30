@@ -7,14 +7,17 @@ import '../../services/auth_service.dart';
 class ChoosePlanScreen extends StatefulWidget {
   final int userId;
   final String petName;
-  final File imageFile; // Archivo de la foto de la mascota
+  final File? imageFile; // Archivo de la foto de la mascota
+  final String? existingPhotoUrl;
 
   const ChoosePlanScreen({
     super.key,
     required this.userId,
     required this.petName,
     required this.imageFile,
-  });
+    this.existingPhotoUrl,
+  }) : assert(imageFile != null || existingPhotoUrl != null,
+            'Debe proporcionar una imagen nueva o una URL existente para la foto de la mascota.');
 
   @override
   State<ChoosePlanScreen> createState() => _ChoosePlanScreenState();
@@ -32,53 +35,43 @@ class _ChoosePlanScreenState extends State<ChoosePlanScreen> {
     });
 
     try {
-      // 1. Registrar Mascota y Plan en el backend (esta es la llamada final de registro)
-      await _authService.registerPetAndPlan(
-        widget.userId,
-        widget.petName,
-        planType,
-        widget.imageFile,
-      );
-
-      // 2. Ejecutar la lógica específica del plan después del registro exitoso
-      if (planType == 'FREE') {
-        _showSnackbar(
-          'Plan Gratuito activado. ¡Inicia sesión para comenzar!',
-          isError: false,
+      // 🟢 LÓGICA CONDICIONAL: Dependiendo de si es registro nuevo o upgrade
+      if (widget.imageFile != null) {
+        // --- Flujo de Registro Nuevo (viene de AddPetPhotoScreen) ---
+        await _authService.registerPetAndPlan(
+          widget.userId,
+          widget.petName,
+          planType,
+          widget.imageFile!, // Usa el archivo de imagen
         );
-        if (mounted) {
-          // Redirige a Login y borra el historial
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (Route<dynamic> route) => false,
-          );
-        }
       } else {
-        // PREMIUM
-        _showSnackbar(
-          'Mascota registrada. Redirigiendo a pago para activar Premium.',
-          isError: false,
+        // --- Flujo de Upgrade (viene de ZoneScreen) ---
+        // Llama al endpoint que solo actualiza el plan del usuario
+        await _authService.selectPlan(widget.userId, planType); 
+      }
+
+      // --- Lógica de Navegación Post-Selección ---
+      if (planType == 'FREE') {
+        _showSnackbar('Plan Gratuito activado. ¡Inicia sesión!', isError: false);
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginScreen()), (Route<dynamic> route) => false);
+        }
+      } else { // PREMIUM
+         _showSnackbar(
+          widget.imageFile != null 
+            ? 'Mascota registrada. Redirigiendo a pago...' // Mensaje de registro
+            : 'Redirigiendo a pago para activar Premium...', // Mensaje de upgrade
+          isError: false
         );
         if (mounted) {
-          // Navega a la pantalla de pago
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentScreen(userId: widget.userId),
-            ),
-          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => PaymentScreen(userId: widget.userId)));
         }
       }
     } catch (e) {
       String errorMessage = e.toString().replaceFirst('Exception: ', '');
-      _showSnackbar('Error al seleccionar plan: $errorMessage', isError: true);
+      _showSnackbar('Error al procesar el plan: $errorMessage', isError: true);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) { setState(() { _isLoading = false; }); }
     }
   }
 

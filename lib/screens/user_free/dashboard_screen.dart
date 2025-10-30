@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
 import '../../services/auth_service.dart';
+import 'zone_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final User user;
@@ -27,6 +28,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _currentIndex = index;
     });
+
+    if (index == 1) {
+      // Navegar a la pantalla de Zonas Seguras
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ZoneScreen(
+            user: widget.user,
+            pet: widget.pet,
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildHeader(Color primaryColor) {
@@ -191,7 +205,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: GestureDetector(
               onTap: () {
-                _onBottomNavTapped(1);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ZoneScreen(
+                      user: widget.user,
+                      pet: widget.pet),
+                  ),
+                );
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(
