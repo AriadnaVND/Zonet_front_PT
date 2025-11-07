@@ -4,6 +4,7 @@ import '../../models/pet.dart';
 import '../../services/auth_service.dart';
 import 'zone_screen.dart';
 import 'community_screen.dart';
+import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final User user;
@@ -48,6 +49,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         MaterialPageRoute(
           builder: (context) => CommunityScreen(
             user: widget.user,
+          ),
+        ),
+      );
+    } else if (index == 3) {
+      // Navegar a la pantalla de Ajustes
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SettingsScreen(
+            user: widget.user,
+            pet: widget.pet,
           ),
         ),
       );
