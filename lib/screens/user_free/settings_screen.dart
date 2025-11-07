@@ -5,6 +5,8 @@ import '../../models/pet.dart';
 import '../../services/auth_service.dart';
 import '../plans/choose_plan_screen.dart';
 import 'profile_settings_screen.dart';
+import 'notification_settings_screen.dart';
+import 'subscription_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final User user;
@@ -167,7 +169,13 @@ class SettingsScreen extends StatelessWidget {
           title: 'Notificaciones',
           subtitle: 'Preferencias Y Configuración De Alertas',
           onTap: () {
-            // TODO: Implementar navegación a Notificaciones
+            // 🟢 NAVEGACIÓN A CONFIGURACIÓN DE NOTIFICACIONES
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotificationSettingsScreen(),
+              ),
+            );
           },
         ),
         _buildSettingTile(
@@ -175,16 +183,11 @@ class SettingsScreen extends StatelessWidget {
           title: 'Suscripción',
           subtitle: 'Administra Tu Plan Y Facturación',
           onTap: () {
-            // Navegar a la pantalla de selección de plan para Upgrade
+            // 🟢 NAVEGACIÓN A PANTALLA DE MENÚ DE SUSCRIPCIONES
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ChoosePlanScreen(
-                  userId: user.id!,
-                  petName: pet.name!,
-                  imageFile: null, // No es un nuevo registro, solo un upgrade
-                  existingPhotoUrl: pet.photoUrl,
-                ),
+                builder: (context) => SubscriptionScreen(user: user),
               ),
             );
           },

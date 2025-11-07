@@ -5,6 +5,7 @@ import '../../services/auth_service.dart';
 import 'zone_screen.dart';
 import 'community_screen.dart';
 import 'settings_screen.dart';
+import 'notification_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final User user;
@@ -36,10 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ZoneScreen(
-            user: widget.user,
-            pet: widget.pet,
-          ),
+          builder: (context) => ZoneScreen(user: widget.user, pet: widget.pet),
         ),
       );
     } else if (index == 2) {
@@ -47,9 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => CommunityScreen(
-            user: widget.user,
-          ),
+          builder: (context) => CommunityScreen(user: widget.user),
         ),
       );
     } else if (index == 3) {
@@ -57,10 +53,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => SettingsScreen(
-            user: widget.user,
-            pet: widget.pet,
-          ),
+          builder: (context) =>
+              SettingsScreen(user: widget.user, pet: widget.pet),
         ),
       );
     }
@@ -118,7 +112,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   size: 28,
                 ),
                 onPressed: () {
-                  /* Navegar a notificaciones */
+                  // NAVEGAR A LA PANTALLA DE LISTA DE ALERTAS
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationListScreen(
+                        user: widget.user,
+                        pet: widget.pet,
+                      ),
+                    ),
+                  );
                 },
               ),
               const SizedBox(width: 8),
@@ -231,9 +234,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ZoneScreen(
-                      user: widget.user,
-                      pet: widget.pet),
+                    builder: (context) =>
+                        ZoneScreen(user: widget.user, pet: widget.pet),
                   ),
                 );
               },
