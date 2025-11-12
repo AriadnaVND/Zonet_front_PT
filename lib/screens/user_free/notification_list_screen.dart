@@ -59,17 +59,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       });
     }
   }
-
-  void _showSnackbar(String message, {bool isError = false}) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: isError ? Colors.red : const Color(0xFF00ADB5),
-        ),
-      );
-    }
-  }
+  
 
   // --- Widgets Auxiliares ---
 

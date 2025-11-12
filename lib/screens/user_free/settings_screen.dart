@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
 import '../../services/auth_service.dart';
-import '../plans/choose_plan_screen.dart';
+
 import 'profile_settings_screen.dart';
 import 'notification_settings_screen.dart';
 import 'subscription_screen.dart';

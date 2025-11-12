@@ -1,3 +1,18 @@
+val localPropertiesFile = rootProject.file("key.properties")
+val localProperties = java.util.Properties()
+
+// Carga las propiedades si el archivo existe (requerido para entornos CI/CD)
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { inputStream ->
+        localProperties.load(inputStream)
+    }
+}
+
+// Función para obtener la clave de forma segura
+fun getLocalProperty(propertyName: String): String {
+    return localProperties.getProperty(propertyName) ?: ""
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -28,6 +43,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // 2. Expone la clave como una variable de manifiesto (placeholder)
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY_VAR"] = getLocalProperty("googleMapsApiKey")
     }
 
     buildTypes {

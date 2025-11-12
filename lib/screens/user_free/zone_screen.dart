@@ -91,7 +91,7 @@ class _ZoneScreenState extends State<ZoneScreen> {
           MaterialPageRoute(
             builder: (context) => ChoosePlanScreen(
               userId: widget.user.id!,
-              petName: widget.pet.name!,
+              petName: widget.pet.name,
               imageFile: null,
               existingPhotoUrl: widget.pet.photoUrl,
             ),

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
+import '../../models/location.dart';
 import '../../services/auth_service.dart';
+import '../../services/tracker_service.dart';
 import 'zone_screen.dart';
 import 'community_screen.dart';
 import 'settings_screen.dart';
 import 'notification_list_screen.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class DashboardScreen extends StatefulWidget {
   final User user;
@@ -26,6 +30,54 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
   final AuthService _authService = AuthService();
+  final TrackerService _trackerService = TrackerService();
+
+  PetLocation? _currentPetLocation;
+  bool _isLocationLoading = true;
+  String? _locationError;
+
+  @override
+  void initState() {
+    super.initState();
+    timeago.setLocaleMessages(
+      'es',
+      timeago.EsMessages(),
+    ); // Asegurar que timeago esté en español
+    _fetchPetLocation();
+  }
+
+  // NUEVO MÉTODO: Obtener la ubicación de la mascota del backend
+  Future<void> _fetchPetLocation() async {
+    if (!mounted) return;
+    setState(() {
+      _isLocationLoading = true;
+      _locationError = null;
+    });
+
+    try {
+      final location = await _trackerService.fetchCurrentLocation(
+        widget.pet.id,
+      );
+      setState(() {
+        _currentPetLocation = location;
+      });
+    } catch (e) {
+      // Si el backend devuelve "No se encontró ubicación para la mascota.",
+      // se muestra el error de forma amigable.
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _locationError = errorMessage.contains('No se encontró')
+            ? 'La ubicación del dispositivo aún no ha sido reportada.'
+            : 'Error al conectar: $errorMessage';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLocationLoading = false;
+        });
+      }
+    }
+  }
 
   void _onBottomNavTapped(int index) {
     setState(() {
@@ -143,7 +195,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // --- Widgets de contenido (Mapa y Tarjetas) ---
   Widget _buildMapSection(Color primaryColor) {
-    // Implementación del mapa placeholder según la imagen
+    // Lógica para mostrar el estado de la ubicación
+    Widget mapContent;
+    String statusText;
+    Color statusColor;
+    LatLng mapCenter;
+    Set<Marker> markers = {};
+    String lastUpdate = '';
+
+    if (_isLocationLoading) {
+      mapCenter = const LatLng(34.0522, -118.2437); // Default
+      statusText = 'Cargando Ubicación...';
+      statusColor = Colors.grey;
+      mapContent = const Center(child: CircularProgressIndicator());
+    } else if (_locationError != null || _currentPetLocation == null) {
+      // Muestra error si no hay datos o la conexión falló
+      mapCenter = const LatLng(34.0522, -118.2437); // Default
+      statusText = 'Desconectado';
+      statusColor = Colors.red;
+      mapContent = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            _locationError ??
+                'La ubicación del dispositivo aún no ha sido reportada.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.red.shade700),
+          ),
+        ),
+      );
+    } else {
+      // Datos de ubicación recibidos y listos para el mapa
+      mapCenter = LatLng(
+        _currentPetLocation!.latitude,
+        _currentPetLocation!.longitude,
+      );
+      statusText = 'Online';
+      statusColor = Colors.green;
+      lastUpdate = timeago.format(_currentPetLocation!.timestamp, locale: 'es');
+
+      // Crea el marcador de la mascota
+      markers.add(
+        Marker(
+          markerId: const MarkerId('pet_tracker_location'),
+          position: mapCenter,
+          infoWindow: InfoWindow(
+            title: widget.pet.name,
+            snippet: 'Actualizado: $lastUpdate',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
+        ),
+      );
+
+      // Muestra el mapa con el marcador
+      mapContent = GoogleMap(
+        initialCameraPosition: CameraPosition(target: mapCenter, zoom: 16),
+        markers: markers,
+        zoomControlsEnabled: true,
+        myLocationButtonEnabled: false,
+        // Al tocar el mapa, centra la cámara en la ubicación de la mascota
+        onTap: (_) {
+          // Opcional: Animar la cámara de nuevo a la posición de la mascota
+          // if (mapController != null) {
+          //   mapController!.animateCamera(CameraUpdate.newLatLng(mapCenter));
+          // }
+        },
+      );
+    }
+
+    // Implementación del mapa placeholder
     return Container(
       margin: const EdgeInsets.all(16.0),
       padding: const EdgeInsets.all(16.0),
@@ -174,16 +294,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Container(
                     width: 10,
                     height: 10,
-                    decoration: const BoxDecoration(
-                      color: Colors.green,
+                    decoration: BoxDecoration(
+                      color: statusColor,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 5),
-                  const Text(
-                    'Online',
+                  Text(
+                    statusText,
                     style: TextStyle(
-                      color: Colors.green,
+                      color: statusColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -191,29 +311,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+          // Muestra la hora de la última actualización si está online
+          if (lastUpdate.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                'Actualizado $lastUpdate',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ),
+
           const SizedBox(height: 15),
-          // Placeholder del mapa con el marcador rojo
+
+          // Área del Mapa/Contenido
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey, width: 1.0),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.location_pin,
-                color: Colors.red,
-                size: 40,
-                shadows: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    spreadRadius: 2,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: mapContent,
               ),
             ),
           ),
@@ -349,15 +470,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: accentColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(primaryColor),
-              _buildMapSection(primaryColor),
-              _buildActionCards(primaryColor, emergencyColor),
-              const SizedBox(height: 20),
-            ],
+        child: RefreshIndicator(
+          onRefresh: _fetchPetLocation,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(primaryColor),
+                _buildMapSection(primaryColor),
+                _buildActionCards(primaryColor, emergencyColor),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),

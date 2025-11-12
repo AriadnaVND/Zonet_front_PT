@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart';
+
 import '../plans/choose_plan_screen.dart';
 
 class AddPetPhotoScreen extends StatefulWidget {

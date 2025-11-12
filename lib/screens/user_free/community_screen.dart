@@ -160,7 +160,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   // Botón rojo de Reportar Mascota Perdida
   Widget _buildReportButton() {
-    const Color primaryColor = Color(0xFF00ADB5);
+    
     const Color emergencyColor = Color(0xFFE57373);
 
     return Padding(

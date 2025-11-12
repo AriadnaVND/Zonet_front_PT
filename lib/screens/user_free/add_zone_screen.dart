@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../models/zone.dart';
 import '../../services/zone_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart' as geocoding;
+import 'package:location/location.dart';
 
 class AddZoneScreen extends StatefulWidget {
   final int userId;
@@ -23,23 +26,115 @@ class _AddZoneScreenState extends State<AddZoneScreen> {
     text: '500',
   ); // Valor por defecto
   final _formKey = GlobalKey<FormState>();
+
+  GoogleMapController? _mapController;
+  Location _locationService = Location();
+
   bool _isLoading = false;
 
   // 💡 Datos simulados de la ubicación (requiere integración real de mapas/GPS)
-  String _currentAddress = '2972 Westheimer Rd. Santa Ana, Illinois 85486';
+  String _currentAddress = 'Ubicacion no disponible';
   double _currentLat = 34.0522; // Ejemplo: Los Angeles
   double _currentLon = -118.2437;
   String? _selectedPreset = 'Casa';
 
+  final LatLng _initialCameraPosition = const LatLng(34.0522, -118.2437);
+
+  @override
+  void initState() {
+    super.initState();
+    // Obtener la ubicación actual al iniciar
+    _getCurrentLocation();
+  }
+
   @override
   void dispose() {
+    _mapController?.dispose();
     _nameController.dispose();
     _radiusController.dispose();
     super.dispose();
   }
 
+  // --- Lógica de Servicios de Ubicación (GPS y Geocodificación) ---
+
+  // 1. Obtener ubicación actual (para centrar el mapa y usar el GPS)
+  Future<void> _getCurrentLocation() async {
+    try {
+      final locationData = await _locationService.getLocation();
+
+      if (locationData.latitude != null && locationData.longitude != null) {
+        // 💡 CORRECCIÓN: Usar _mapController solo si no es nulo
+        if (_mapController != null) {
+          _mapController!.animateCamera(
+            // Usar el operador ! para indicar que no es nulo después de la comprobación
+            CameraUpdate.newLatLng(
+              LatLng(locationData.latitude!, locationData.longitude!),
+            ),
+          );
+        }
+        // Establecer el marcador inicial en la ubicación del usuario
+        await _fetchAddressFromCoordinates(
+          locationData.latitude!,
+          locationData.longitude!,
+        );
+      }
+    } catch (e) {
+      _showSnackbar('Fallo al obtener la ubicación GPS: $e', isError: true);
+      // Si falla, el mapa permanecerá en la posición inicial (_initialCameraPosition)
+    }
+  }
+
+  // 2. Obtener dirección legible a partir de coordenadas (Geocodificación inversa)
+  Future<void> _fetchAddressFromCoordinates(double lat, double lon) async {
+    setState(() {
+      _currentAddress = 'Buscando dirección...';
+      _currentLat = lat;
+      _currentLon = lon;
+    });
+
+    try {
+      // Usando el paquete geocoding para obtener la dirección real
+      List<geocoding.Placemark> placemarks = await geocoding
+          .placemarkFromCoordinates(lat, lon);
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        final address = [
+          place.street,
+          place.locality,
+          place.country,
+        ].where((e) => e != null && e.isNotEmpty).join(', ');
+
+        setState(() {
+          _currentAddress = address.isEmpty
+              ? 'Dirección no encontrada'
+              : address;
+        });
+      } else {
+        setState(() {
+          _currentAddress = 'Coordenadas: $lat, $lon';
+        });
+      }
+    } catch (e) {
+      _showSnackbar('Error al obtener la dirección: $e', isError: true);
+      setState(() {
+        _currentAddress = 'Error de Geocodificación';
+      });
+    }
+  }
+
+  // --- Lógica de Guardar Zona ---
+
   Future<void> _handleSaveZone() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_currentAddress == 'Ubicación no seleccionada' ||
+        _currentAddress.startsWith('Error')) {
+      _showSnackbar(
+        'Por favor, selecciona una ubicación válida en el mapa.',
+        isError: true,
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -89,6 +184,7 @@ class _AddZoneScreenState extends State<AddZoneScreen> {
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF00ADB5);
+    final initialPosition = LatLng(_currentLat, _currentLon);
 
     return Scaffold(
       appBar: AppBar(
@@ -117,38 +213,54 @@ class _AddZoneScreenState extends State<AddZoneScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Sección de Mapa (Ocupa la mitad superior de la pantalla)
+                // Sección de Mapa (Reemplaza el Placeholder por el Mapa Real)
                 AspectRatio(
-                  aspectRatio:
-                      1 / 1, // Mapa cuadrado para un mejor uso del espacio
-                  child: Container(
-                    color: Colors.grey[200],
-                    alignment: Alignment.center,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Placeholder del Mapa
-                        Image.asset(
-                          'assets/images/map_placeholder.png', // Usar una imagen o un Container gris
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-
-                        // Marcador de Ubicación
-                        Icon(Icons.location_pin, color: Colors.red, size: 40),
-                        // Círculo de Radio (Simulación)
-                        Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: primaryColor.withOpacity(0.2),
-                            border: Border.all(color: primaryColor, width: 2),
-                          ),
-                        ),
-                      ],
+                  aspectRatio: 1 / 1,
+                  child: GoogleMap(
+                    mapType: MapType.normal,
+                    initialCameraPosition: CameraPosition(
+                      target: _initialCameraPosition,
+                      zoom: 12,
                     ),
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      // Si ya se obtuvo la ubicación actual al iniciar, se centra.
+                      if (_currentLat != _initialCameraPosition.latitude ||
+                          _currentLon != _initialCameraPosition.longitude) {
+                        _mapController?.animateCamera(
+                          CameraUpdate.newLatLng(initialPosition),
+                        );
+                      }
+                    },
+                    // Captura el toque en el mapa para definir la zona
+                    onTap: (LatLng latLng) {
+                      _fetchAddressFromCoordinates(
+                        latLng.latitude,
+                        latLng.longitude,
+                      );
+                    },
+                    markers: {
+                      Marker(
+                        markerId: const MarkerId('zone_location'),
+                        position: LatLng(_currentLat, _currentLon),
+                        infoWindow: InfoWindow(
+                          title: _nameController.text.isNotEmpty
+                              ? _nameController.text
+                              : 'Nueva Zona',
+                        ),
+                      ),
+                    },
+                    circles: {
+                      Circle(
+                        circleId: const CircleId('safe_zone_radius'),
+                        center: LatLng(_currentLat, _currentLon),
+                        radius:
+                            double.tryParse(_radiusController.text) ?? 500.0,
+                        fillColor: primaryColor.withOpacity(0.2),
+                        strokeColor: primaryColor,
+                        strokeWidth: 2,
+                      ),
+                    },
                   ),
                 ),
 
@@ -171,7 +283,7 @@ class _AddZoneScreenState extends State<AddZoneScreen> {
 
                         // Campo "Tu ubicación"
                         Text(
-                          'Tu ubicación',
+                          'Ubicación seleccionada',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -189,23 +301,13 @@ class _AddZoneScreenState extends State<AddZoneScreen> {
                               ),
                             ),
                             // Botones de acción (Simulación de búsqueda/GPS)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.search,
-                                color: primaryColor,
-                              ),
-                              onPressed: () {
-                                /* TODO: Abrir buscador de dirección */
-                              },
-                            ),
+                            // El botón de GPS ahora usa el servicio `location`
                             IconButton(
                               icon: const Icon(
                                 Icons.gps_fixed,
                                 color: primaryColor,
                               ),
-                              onPressed: () {
-                                /* TODO: Usar GPS del celular */
-                              },
+                              onPressed: _getCurrentLocation,
                             ),
                           ],
                         ),
@@ -278,6 +380,7 @@ class _AddZoneScreenState extends State<AddZoneScreen> {
                             ),
                             prefixIcon: const Icon(Icons.circle_outlined),
                           ),
+                          onChanged: (_) => setState(() {}),
                         ),
                       ],
                     ),
