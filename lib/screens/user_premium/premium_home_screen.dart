@@ -1,5 +1,3 @@
-// lib/screens/user_premium/premium_home_screen.dart
-
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
@@ -97,7 +95,7 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => CommunityScreen(user: widget.user),
+          builder: (context) => CommunityScreen(user: widget.user, pet: widget.pet),
         ),
       );
     } else if (index == 3) {

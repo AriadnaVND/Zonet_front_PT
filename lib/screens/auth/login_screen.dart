@@ -1,10 +1,12 @@
 // lib/screens/auth/login_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:zoonet_front/screens/user_premium/premium_home_screen.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 import 'register_screen.dart';
 import '../user_free/dashboard_screen.dart';
+import '../user_premium/premium_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -76,8 +78,10 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => const Scaffold(
-                body: Center(child: Text("Home Premium Placeholder")),
+              builder: (context) => PremiumHomeScreen(
+                user: user,
+                pet: pet,
+                safeZoneCount: safeZoneLimit,
               ),
             ),
           );

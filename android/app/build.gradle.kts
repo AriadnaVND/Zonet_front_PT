@@ -1,5 +1,7 @@
+import java.util.Properties
+
 val localPropertiesFile = rootProject.file("key.properties")
-val localProperties = java.util.Properties()
+val localProperties = Properties()
 
 // Carga las propiedades si el archivo existe (requerido para entornos CI/CD)
 if (localPropertiesFile.exists()) {

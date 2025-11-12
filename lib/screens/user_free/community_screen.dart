@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/community.dart';
 import '../../services/community_service.dart';
+import '../../models/pet.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'add_comment_screen.dart';
+import 'report_lost_pet_modal.dart';
 
 class CommunityScreen extends StatefulWidget {
   final User user;
+  final Pet pet;
 
-  const CommunityScreen({super.key, required this.user});
+  const CommunityScreen({super.key, required this.user, required this.pet});
 
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
@@ -20,7 +23,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
   final CommunityService _communityService = CommunityService();
   List<CommunityPost> _posts = [];
   bool _isLoading = true;
-  bool _isReportingLost = false; // Estado para el proceso de reporte
 
   // 💡 Límite de reportes para usuarios FREE (lo obtienes del backend)
   // Como el backend solo valida 3 y el mensaje de la UI es genérico, lo dejamos fijo.
@@ -81,40 +83,24 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   // --- Lógica para el botón de Reportar Mascota Perdida (Simulación) ---
   Future<void> _handleReportLostPet() async {
-    if (_isReportingLost) return;
-
-    // Simulación de datos necesarios para LostPetDTO (Debe usar la Pet del usuario)
-    final petId = 1;
-
-    final Map<String, dynamic> lostPetData = {
-      'petId': petId,
-      'description': 'Se le cayó el collar en el parque.',
-      'hoursLost': 1,
-      'lastSeenLocation': 'Parque Central',
-      'lastSeenLatitude': 34.0522,
-      'lastSeenLongitude': -118.2437,
-    };
-
-    setState(() {
-      _isReportingLost = true;
-    });
-
-    try {
-      await _communityService.reportLostPet(lostPetData);
-      _showSnackbar('¡Alerta de mascota perdida activada!', isError: false);
-      _fetchPosts(); // Refresca el feed para mostrar la alerta
-    } catch (e) {
-      _showSnackbar(
-        'Fallo en el reporte: ${e.toString().replaceFirst('Exception: ', '')}',
-        isError: true,
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isReportingLost = false;
-        });
-      }
-    }
+    // 🟢 CORRECCIÓN: Mostrar el formulario modal
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Para que el modal se ajuste al teclado
+      builder: (context) {
+        return Padding(
+          // Ajustar el padding para el teclado virtual
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: ReportLostPetModal(
+            userId: widget.user.id!,
+            pet: widget.pet,
+            onReportSent: _fetchPosts, // Refresca el feed al enviar el reporte
+          ),
+        );
+      },
+    );
   }
 
   // --- Lógica para el botón de Reacción (Like/Unlike) ---
@@ -167,25 +153,18 @@ class _CommunityScreenState extends State<CommunityScreen> {
       padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
       child: Center(
         child: ElevatedButton.icon(
-          onPressed: _isReportingLost ? null : _handleReportLostPet,
+          // 🟢 CORRECCIÓN: Llamar al manejador del modal
+          onPressed: _handleReportLostPet,
           icon: Icon(Icons.pets, color: Colors.white),
-          label: _isReportingLost
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text(
-                  'REPORTAR MASCOTA PERDIDA',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+          label: const Text(
+            // Elimina el indicador de carga local
+            'REPORTAR MASCOTA PERDIDA',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: emergencyColor,
             shape: RoundedRectangleBorder(

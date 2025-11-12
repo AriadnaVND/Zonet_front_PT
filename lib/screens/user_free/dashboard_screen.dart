@@ -97,7 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => CommunityScreen(user: widget.user),
+          builder: (context) => CommunityScreen(user: widget.user, pet: widget.pet),
         ),
       );
     } else if (index == 3) {
