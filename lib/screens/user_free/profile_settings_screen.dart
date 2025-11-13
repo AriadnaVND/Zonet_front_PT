@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
 import '../../services/auth_service.dart';
+import '../../services/user_service.dart';
 import '../auth/login_screen.dart'; // Para cerrar sesión
 
 class ProfileSettingsScreen extends StatefulWidget {
@@ -21,16 +22,19 @@ class ProfileSettingsScreen extends StatefulWidget {
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
   // Asume que esta URL es la foto del perfil/mascota del usuario logeado
   late String _profileImageUrl;
   bool _isEditingPersonal = false;
   bool _isEditingSecurity = false;
+  bool _isLoadingPersonal = false;
+  bool _isLoadingSecurity = false;
+  bool _isDeleting = false;
 
   // Controladores de edición
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _currentPasswordController =
-      TextEditingController();
+  
   final TextEditingController _newPasswordController = TextEditingController();
 
   // Asumiendo que el usuario está siempre disponible en widget.user
@@ -50,7 +54,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _currentPasswordController.dispose();
+
     _newPasswordController.dispose();
     super.dispose();
   }
@@ -72,41 +76,100 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   // 2. Simulación: Guardar Información Personal
   Future<void> _handleSavePersonal() async {
-    // Aquí iría la llamada a: PUT /api/users/{userId} con la nueva información
-    _showSnackbar(
-      'Guardando información personal... (Simulación)',
-      isError: false,
-    );
-    setState(() {
-      _isEditingPersonal = false;
-      // Simular actualización local de la UI
-      _currentUser = User(
-        id: _currentUser.id,
-        name: _nameController.text,
-        email: _emailController.text,
-        plan: _currentUser.plan,
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty) {
+      _showSnackbar(
+        'El nombre y el email no pueden estar vacíos.',
+        isError: true,
       );
-    });
-    // Simulación de carga/espera
-    await Future.delayed(const Duration(milliseconds: 800));
-    _showSnackbar('Información actualizada.', isError: false);
-  }
+      return;
+    }
 
-  // 3. Simulación: Cambiar Contraseña
-  Future<void> _handleSavePassword() async {
-    // Aquí iría la llamada a: PUT /api/auth/password/{userId}
-    _showSnackbar('Cambiando contraseña... (Simulación)', isError: false);
+    if (_nameController.text == _currentUser.name &&
+        _emailController.text == _currentUser.email) {
+      setState(() => _isEditingPersonal = false);
+      _showSnackbar('No hay cambios para guardar.', isError: false);
+      return;
+    }
+
     setState(() {
-      _isEditingSecurity = false;
-      _currentPasswordController.clear();
-      _newPasswordController.clear();
+      _isLoadingPersonal = true;
     });
-    // Simulación de carga/espera
-    await Future.delayed(const Duration(milliseconds: 800));
-    _showSnackbar('Contraseña cambiada exitosamente.', isError: false);
+
+    try {
+      final updatedUser = await _userService.updateProfile(
+        _currentUser.id!,
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: null, // No se cambia la contraseña aquí
+      );
+
+      setState(() {
+        _isEditingPersonal = false;
+        _currentUser = updatedUser; // Actualiza el objeto User en el estado
+      });
+
+      _showSnackbar('Información personal actualizada.', isError: false);
+    } catch (e) {
+      String errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _showSnackbar('Error al actualizar: $errorMessage', isError: true);
+      // Revertir a valores originales en caso de error
+      _nameController.text = _currentUser.name ?? '';
+      _emailController.text = _currentUser.email ?? '';
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPersonal = false;
+        });
+      }
+    }
   }
 
-  // 4. Simulación: Eliminar Cuenta
+  // 3. Cambiar Contraseña
+  Future<void> _handleSavePassword() async {
+    final newPassword = _newPasswordController.text.trim();
+    if (newPassword.length < 6) {
+      _showSnackbar(
+        'La nueva contraseña debe tener al menos 6 caracteres.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoadingSecurity = true;
+    });
+
+    try {
+      // El backend requiere al menos un campo, enviamos solo la nueva contraseña
+      await _userService.updateProfile(
+        _currentUser.id!,
+        name: null,
+        email: null,
+        password: newPassword,
+      );
+
+      setState(() {
+        _isEditingSecurity = false;
+        _newPasswordController.clear();
+      });
+      _showSnackbar('Contraseña cambiada exitosamente.', isError: false);
+    } catch (e) {
+      String errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _showSnackbar(
+        'Error al cambiar contraseña: $errorMessage',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingSecurity = false;
+        });
+      }
+    }
+  }
+
+  // 4. Eliminar Cuenta
   void _confirmDeleteAccount() {
     showDialog(
       context: context,
@@ -142,13 +205,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Future<void> _handleDeleteAccount() async {
-    // Aquí iría la llamada a: DELETE /api/users/{userId}
-    _showSnackbar('Eliminando cuenta... (Simulación)', isError: false);
-    // Simulación de carga/espera
-    await Future.delayed(const Duration(seconds: 1));
-    // Después de la eliminación exitosa, redirigir al login
-    _handleLogout();
-    _showSnackbar('Cuenta eliminada correctamente.', isError: false);
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      await _userService.deleteAccount(
+        _currentUser.id!,
+      ); // Llama al DELETE real
+
+      _handleLogout(); // Redirige al login después de la eliminación exitosa
+      _showSnackbar('Cuenta eliminada correctamente.', isError: false);
+    } catch (e) {
+      String errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _showSnackbar(
+        'Fallo al eliminar la cuenta: $errorMessage',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+      }
+    }
   }
 
   void _showSnackbar(String message, {bool isError = false}) {
@@ -205,6 +285,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     required VoidCallback onEditPressed,
     required VoidCallback onSavePressed,
     required Color primaryColor,
+    required bool isLoading,
   }) {
     return Card(
       elevation: 2,
@@ -233,16 +314,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     ),
                   ],
                 ),
-                TextButton(
-                  onPressed: isEditing ? onSavePressed : onEditPressed,
-                  child: Text(
-                    isEditing ? 'Guardar' : 'Editar',
-                    style: TextStyle(
-                      color: isEditing ? Colors.green : primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : TextButton(
+                        onPressed: isEditing ? onSavePressed : onEditPressed,
+                        child: Text(
+                          isEditing ? 'Guardar' : 'Editar',
+                          style: TextStyle(
+                            color: isEditing ? Colors.green : primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
               ],
             ),
             const Divider(height: 20),
@@ -275,157 +362,159 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // Foto de Perfil (Con icono de cámara)
-            Center(
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  CircleAvatar(
-                    radius: 70,
-                    backgroundImage: NetworkImage(_profileImageUrl),
-                    backgroundColor: Colors.grey[300],
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      _showSnackbar(
-                        'Cambiando foto de perfil... (No implementado)',
-                        isError: false,
-                      );
-                      // TODO: Implementar lógica de cambio de foto
-                    },
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: primaryColor,
-                      child: const Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ],
+      body: _isDeleting
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 10.0,
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // 1. Sección de Información Personal
-            _buildSectionCard(
-              primaryColor: primaryColor,
-              title: 'Información Personal',
-              titleIcon: Icons.person_outline,
-              isEditing: _isEditingPersonal,
-              onEditPressed: () => setState(() => _isEditingPersonal = true),
-              onSavePressed: _handleSavePersonal,
-              content: Column(
-                children: [
-                  _buildField(
-                    icon: Icons.person,
-                    controller: _nameController,
-                    isEditable: _isEditingPersonal,
-                  ),
-                  _buildField(
-                    icon: Icons.email,
-                    controller: _emailController,
-                    isEditable: _isEditingPersonal,
-                    isEmail: true,
-                  ),
-                ],
-              ),
-            ),
-
-            // 2. Sección de Seguridad
-            _buildSectionCard(
-              primaryColor: primaryColor,
-              title: 'Seguridad',
-              titleIcon: Icons.lock_outline,
-              isEditing: _isEditingSecurity,
-              onEditPressed: () => setState(() => _isEditingSecurity = true),
-              onSavePressed: _handleSavePassword,
-              content: Column(
-                children: [
-                  if (_isEditingSecurity) // Muestra campos solo en modo edición
-                    _buildField(
-                      icon: Icons.lock,
-                      controller: _currentPasswordController,
-                      isEditable: true,
-                      isPassword: true,
-                      // Nota: El diseño original solo muestra "Cambiar Contraseña",
-                      // pero una implementación real requiere el campo de contraseña actual.
-                    ),
-                  _buildField(
-                    icon: Icons.lock,
-                    controller: _newPasswordController,
-                    isEditable: _isEditingSecurity,
-                    isPassword: true,
-                  ),
-                  if (!_isEditingSecurity)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        'Cambiar Contraseña',
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w500,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // Foto de Perfil (Mantenida como simulación por simplicidad)
+                  Center(
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 70,
+                          backgroundImage: NetworkImage(_profileImageUrl),
+                          backgroundColor: Colors.grey[300],
                         ),
+                        GestureDetector(
+                          onTap: () {
+                            _showSnackbar(
+                              'Cambiando foto de perfil... (No implementado en el backend)',
+                              isError: false,
+                            );
+                            // TODO: Implementar lógica de cambio de foto
+                          },
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: primaryColor,
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 1. Sección de Información Personal
+                  _buildSectionCard(
+                    primaryColor: primaryColor,
+                    title: 'Información Personal',
+                    titleIcon: Icons.person_outline,
+                    isEditing: _isEditingPersonal,
+                    onEditPressed: () =>
+                        setState(() => _isEditingPersonal = true),
+                    onSavePressed: _handleSavePersonal,
+                    isLoading: _isLoadingPersonal,
+                    content: Column(
+                      children: [
+                        _buildField(
+                          icon: Icons.person,
+                          controller: _nameController,
+                          isEditable: _isEditingPersonal,
+                        ),
+                        _buildField(
+                          icon: Icons.email,
+                          controller: _emailController,
+                          isEditable: _isEditingPersonal,
+                          isEmail: true,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // 2. Sección de Seguridad
+                  _buildSectionCard(
+                    primaryColor: primaryColor,
+                    title: 'Seguridad (Cambiar Contraseña)',
+                    titleIcon: Icons.lock_outline,
+                    isEditing: _isEditingSecurity,
+                    onEditPressed: () =>
+                        setState(() => _isEditingSecurity = true),
+                    onSavePressed: _handleSavePassword,
+                    isLoading: _isLoadingSecurity,
+                    content: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isEditingSecurity)
+                          _buildField(
+                            icon: Icons.lock,
+                            controller: _newPasswordController,
+                            isEditable: true,
+                            isPassword: true,
+                          )
+                        else
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Presiona "Editar" para cambiar tu contraseña',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // 3. Botones de Acción
+                  ElevatedButton.icon(
+                    onPressed: _isDeleting ? null : _confirmDeleteAccount,
+                    icon: const Icon(Icons.delete, color: Colors.white),
+                    label: Text(
+                      _isDeleting ? 'ELIMINANDO...' : 'ELIMINAR CUENTA',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(
+                        0xFFE57373,
+                      ), // Color rojo de emergencia
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _handleLogout,
+                    icon: const Icon(Icons.logout, color: Colors.black),
+                    label: const Text(
+                      'Cerrar Sesión',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: const BorderSide(color: Colors.black54, width: 1),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-
-            // 3. Botones de Acción
-            ElevatedButton.icon(
-              onPressed: _confirmDeleteAccount,
-              icon: const Icon(Icons.delete, color: Colors.white),
-              label: const Text(
-                'Eliminar Cuenta',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(
-                  0xFFE57373,
-                ), // Color rojo de emergencia
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 3,
-              ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _handleLogout,
-              icon: const Icon(Icons.logout, color: Colors.black),
-              label: const Text(
-                'Cerrar Sesión',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                side: const BorderSide(color: Colors.black54, width: 1),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 }
