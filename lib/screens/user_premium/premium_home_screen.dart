@@ -10,6 +10,7 @@ import '../user_free/settings_screen.dart'; // Reutilizar la pantalla de ajustes
 import '../user_free/notification_list_screen.dart'; // Reutilizar la lista de notificaciones
 // 💡 NUEVA PANTALLA: Historial de Rutas
 import 'tracking_history_screen.dart';
+import '../user_free/report_lost_pet_modal.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -79,6 +80,27 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
     }
   }
 
+  // 🟢 NUEVO MÉTODO: Mostrar el modal de reporte
+  void _showReportModal() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: ReportLostPetModal(
+            userId: widget.user.id!,
+            pet: widget.pet,
+            // Al enviar el reporte con éxito, refrescamos el estado del mapa
+            onReportSent: _fetchPetLocation,
+          ),
+        );
+      },
+    );
+  }
+
   void _onBottomNavTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -95,7 +117,8 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => CommunityScreen(user: widget.user, pet: widget.pet),
+          builder: (context) =>
+              CommunityScreen(user: widget.user, pet: widget.pet),
         ),
       );
     } else if (index == 3) {
@@ -394,9 +417,8 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
               // Card: Mascota Perdida (Emergencia)
               Expanded(
                 child: GestureDetector(
-                  onTap: () {
-                    /* Llamar al endpoint /api/pets/lost */
-                  },
+                  // 🟢 LLAMADA AL MODAL DE REPORTE
+                  onTap: _showReportModal,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       vertical: 20,
@@ -434,7 +456,7 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
                         ),
                         SizedBox(height: 5),
                         Text(
-                          'Alerta Vía SMS', // 💡 CAMBIO DE TEXTO
+                          'Alerta a toda la comunidad', // 💡 CAMBIO DE TEXTO
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 14, color: Colors.white70),
                         ),
@@ -520,7 +542,7 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildHeader(primaryColor),
-                // Mostrar la imagen del dashboard Premium                 _buildMapSection(primaryColor),
+                _buildMapSection(primaryColor),
                 _buildActionCards(primaryColor, emergencyColor),
                 const SizedBox(height: 20),
               ],

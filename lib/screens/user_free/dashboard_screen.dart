@@ -8,6 +8,7 @@ import 'zone_screen.dart';
 import 'community_screen.dart';
 import 'settings_screen.dart';
 import 'notification_list_screen.dart';
+import 'report_lost_pet_modal.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -79,6 +80,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // 🟢 NUEVO MÉTODO: Mostrar el modal de reporte
+  void _showReportModal() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: ReportLostPetModal(
+            userId: widget.user.id!,
+            pet: widget.pet,
+            // Al enviar el reporte con éxito, refrescamos el estado del mapa
+            onReportSent: _fetchPetLocation,
+          ),
+        );
+      },
+    );
+  }
+
   void _onBottomNavTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -97,7 +119,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => CommunityScreen(user: widget.user, pet: widget.pet),
+          builder: (context) =>
+              CommunityScreen(user: widget.user, pet: widget.pet),
         ),
       );
     } else if (index == 3) {
@@ -407,9 +430,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Card: Mascota Perdida (Emergencia)
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                /* Llamar al endpoint /api/pets/lost */
-              },
+              // 🟢 LLAMADA AL MODAL DE REPORTE
+              onTap: _showReportModal,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   vertical: 20,
