@@ -8,6 +8,7 @@ import '../../models/pet.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'add_comment_screen.dart';
 import 'report_lost_pet_modal.dart';
+import '../community_ai_matching_modal.dart';
 
 class CommunityScreen extends StatefulWidget {
   final User user;
@@ -142,6 +143,29 @@ class _CommunityScreenState extends State<CommunityScreen> {
     }
   }
 
+  // --- Lógica para el botón de AI Matching (SOLO Premium) ---
+  void _handleAiMatching() {
+    final isPremium = widget.user.plan?.toUpperCase() == 'PREMIUM';
+
+    if (isPremium) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CommunityAiMatchingModal(
+            user: widget.user,
+            isPremium: isPremium,
+          ),
+        ),
+      );
+    } else {
+      _showSnackbar(
+        'AI Matching es una función exclusiva para usuarios Premium.',
+        isError: true,
+      );
+      // Opcional: Redirigir a la pantalla de planes si es Free.
+    }
+  }
+
   // --- Widgets de la Interfaz ---
 
   // Botón rojo de Reportar Mascota Perdida
@@ -174,6 +198,53 @@ class _CommunityScreenState extends State<CommunityScreen> {
             elevation: 3,
           ),
         ),
+      ),
+    );
+  }
+
+  // 💡 NUEVO: Botón de Emparejamiento con IA (SOLO en la parte inferior)
+  Widget _buildAiMatchingButton() {
+    final isPremium = widget.user.plan?.toUpperCase() == 'PREMIUM';
+    const Color primaryColor = Color(0xFF00ADB5);
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: isPremium ? primaryColor.withOpacity(0.8) : Colors.blueGrey.shade400, // Color de fondo del botón
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Emparejamiento De Mascotas Con IA',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            // 💡 Llama a la lógica de navegación
+            onPressed: _handleAiMatching, 
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isPremium ? Colors.white : Colors.grey.shade600,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: Text(
+              'PROBAR',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isPremium ? primaryColor : Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -344,6 +415,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     },
                   ),
           ),
+          // Botón de Emparejamiento con IA
+          _buildAiMatchingButton(),
 
           // El mensaje de límite va al final, debajo del feed
           _buildLimitWarning(),

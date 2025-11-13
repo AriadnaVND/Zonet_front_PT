@@ -1,7 +1,9 @@
 // lib/services/community_service.dart
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/community.dart';
+import '../models/ai_match_result.dart';
 import 'auth_service.dart';
 
 class CommunityService {
@@ -127,9 +129,12 @@ class CommunityService {
         }),
       );
 
-      if (response.statusCode != 201) { // HttpStatus.CREATED
+      if (response.statusCode != 201) {
+        // HttpStatus.CREATED
         final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(errorBody['message'] ?? 'Fallo al añadir el comentario.');
+        throw Exception(
+          errorBody['message'] ?? 'Fallo al añadir el comentario.',
+        );
       }
     } catch (e) {
       throw Exception('Fallo de conexión al comentar: ${e.toString()}');
@@ -139,5 +144,56 @@ class CommunityService {
   // 5. 🟢 CORRECCIÓN DEL ERROR: Método público para construir la URL de la imagen
   String buildFullImageUrl(String photoUrlPath) {
     return _authService.buildFullImageUrl(photoUrlPath);
+  }
+
+  // 6. 💡 Emparejamiento de Mascotas con IA (POST /api/community/ai-matching/{userId})
+  Future<List<AiMatchResult>> findAiMatches(int userId, File photo) async {
+    final url = Uri.parse('${_getCommunityBaseUrl()}/ai-matching/$userId');
+
+    var request = http.MultipartRequest('POST', url);
+
+    // El nombre 'photo' debe coincidir exactamente con @RequestParam("photo") en el backend
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'photo', // 💡 CLAVE: Asegúrese de que esto coincide con el backend.
+        photo.path,
+        filename: 'search_pet_photo_$userId.jpg',
+      ),
+    );
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    // ... (Manejo de la respuesta, incluido el parseo del cuerpo) ...
+    // ... (Cuidado con los mensajes vacíos o listas vacías de matches) ...
+
+    final body = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200) {
+      // El backend puede devolver una lista de matches o un mapa con un mensaje (si no hay matches)
+      if (body is List) {
+        return body.map((json) => AiMatchResult.fromJson(json)).toList();
+      } else if (body is Map && body.containsKey('matches')) {
+        return (body['matches'] as List)
+            .map((json) => AiMatchResult.fromJson(json))
+            .toList();
+      } else {
+        // Devuelve una lista vacía si el cuerpo es inesperado
+        return [];
+      }
+    } else if (response.statusCode == 403) {
+      // HttpStatus.FORBIDDEN (Restricción Premium)
+      throw Exception(
+        body['error'] ?? 'Acceso denegado. Esta es una función Premium.',
+      );
+    } else {
+      // El error "no se encuentra" del backend debería llegar aquí si devuelve 404/400
+      // Y en el modal se muestra el mensaje de error.
+      throw Exception(
+        body['error'] ??
+            body['message'] ??
+            'Fallo al buscar coincidencias. Código: ${response.statusCode}',
+      );
+    }
   }
 }

@@ -10,7 +10,7 @@ class AuthService {
   // Configuración de URL para desarrollo (ajustar si es necesario)
   // ---------------------------------------------------------------------
   // Para Android Emulator, usar 10.0.2.2. Para iOS Simulator/Web/Desktop, usar localhost.
-  static const String _androidEmulatorUrl = 'ip:8080';
+  static const String _androidEmulatorUrl = '10.0.2.2:8080';
   static const String _iosSimulatorUrl = 'localhost:8080';
 
   String _getBaseUrl() {
