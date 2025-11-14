@@ -41,18 +41,24 @@ class _CommunityScreenState extends State<CommunityScreen> {
     });
     try {
       final posts = await _communityService.fetchAllPosts(widget.user.id!);
-      setState(() {
-        _posts = posts;
-        _isLoading = false;
-      });
+
+      // 💡 CORRECCIÓN
+      if (mounted) {
+        setState(() {
+          _posts = posts;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       _showSnackbar(
         'Error al cargar la comunidad: ${e.toString().replaceFirst('Exception: ', '')}',
         isError: true,
       );
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -153,6 +159,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         MaterialPageRoute(
           builder: (context) => CommunityAiMatchingModal(
             user: widget.user,
+            pet: widget.pet,
             isPremium: isPremium,
           ),
         ),
@@ -170,7 +177,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   // Botón rojo de Reportar Mascota Perdida
   Widget _buildReportButton() {
-    
     const Color emergencyColor = Color(0xFFE57373);
 
     return Padding(
@@ -206,12 +212,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
   Widget _buildAiMatchingButton() {
     final isPremium = widget.user.plan?.toUpperCase() == 'PREMIUM';
     const Color primaryColor = Color(0xFF00ADB5);
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: isPremium ? primaryColor.withOpacity(0.8) : Colors.blueGrey.shade400, // Color de fondo del botón
+        color: isPremium
+            ? primaryColor.withOpacity(0.8)
+            : Colors.blueGrey.shade400, // Color de fondo del botón
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -227,7 +235,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           const SizedBox(height: 10),
           ElevatedButton(
             // 💡 Llama a la lógica de navegación
-            onPressed: _handleAiMatching, 
+            onPressed: _handleAiMatching,
             style: ElevatedButton.styleFrom(
               backgroundColor: isPremium ? Colors.white : Colors.grey.shade600,
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),

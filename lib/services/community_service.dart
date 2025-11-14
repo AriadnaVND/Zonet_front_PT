@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import '../models/community.dart';
 import '../models/ai_match_result.dart';
 import 'auth_service.dart';
+import 'package:mime/mime.dart';
+import 'package:http_parser/http_parser.dart';
 
 class CommunityService {
   final AuthService _authService = AuthService();
@@ -152,12 +154,25 @@ class CommunityService {
 
     var request = http.MultipartRequest('POST', url);
 
+    // 💡 NUEVA LÓGICA: Detección segura del tipo MIME
+    String? mimeType = lookupMimeType(photo.path);
+    // Asignar a 'image/jpeg' por defecto si no se detecta (es la más común para fotos)
+    String safeMimeType = mimeType ?? 'image/jpeg';
+
+    // Si la detección de mimeType falla, puede estar enviando un tipo no compatible (como 'application/octet-stream')
+    if (!safeMimeType.startsWith('image/')) {
+      throw Exception(
+        "El archivo seleccionado no se reconoce como una imagen válida ($safeMimeType). Intenta con un formato común como JPEG o PNG.",
+      );
+    }
+
     // El nombre 'photo' debe coincidir exactamente con @RequestParam("photo") en el backend
     request.files.add(
       await http.MultipartFile.fromPath(
         'photo', // 💡 CLAVE: Asegúrese de que esto coincide con el backend.
         photo.path,
         filename: 'search_pet_photo_$userId.jpg',
+        contentType: MediaType.parse(safeMimeType),
       ),
     );
 

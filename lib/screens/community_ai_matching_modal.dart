@@ -3,16 +3,19 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../models/user.dart';
+import '../models/pet.dart';
 import '../../models/ai_match_result.dart';
 import '../../services/community_service.dart';
 
 class CommunityAiMatchingModal extends StatefulWidget {
   final User user;
+  final Pet? pet;
   final bool isPremium;
 
   const CommunityAiMatchingModal({
     super.key,
     required this.user,
+    required this.pet,
     required this.isPremium,
   });
 
@@ -35,12 +38,18 @@ class _CommunityAiMatchingModalState extends State<CommunityAiMatchingModal> {
     super.initState();
     if (!widget.isPremium) {
       _errorMessage = "AI Matching es exclusivo para usuarios Premium.";
+    } else if (widget.user.id == null) {
+      _errorMessage =
+          "Error de sesión: El usuario no tiene un ID válido. Por favor, reinicie la aplicación.";
+    } else if (widget.pet == null || widget.pet!.id <= 0) {
+      _errorMessage =
+          "Error de datos: La mascota del usuario no tiene un ID válido o no fue cargada correctamente.";
     }
   }
 
   Future<void> _pickImage() async {
     try {
-      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
       if (pickedFile != null) {
         setState(() {
           _selectedImage = File(
@@ -86,23 +95,41 @@ class _CommunityAiMatchingModalState extends State<CommunityAiMatchingModal> {
         _selectedImage!,
       );
 
-      setState(() {
-        _results = matches;
-        if (matches.isEmpty) {
-          _errorMessage =
-              "No se encontraron coincidencias con un porcentaje mayor al 40%. Intenta con una imagen diferente.";
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _results = matches;
+          if (matches.isEmpty) {
+            _errorMessage =
+                "No se encontraron coincidencias con un porcentaje mayor al 40%. Intenta con una imagen diferente.";
+          }
+        });
+      }
       _showSnackbar('Búsqueda completada.', isError: false);
     } catch (e) {
       String msg = e.toString().replaceFirst('Exception: ', '');
-      if (msg.contains('Premium')) {
-        _errorMessage =
-            msg; // Muestra el mensaje de restricción de rol del backend
+
+      // Construir el mensaje de error final
+      String finalErrorMsg;
+      if (msg.contains('NotFound') ||
+          msg.contains('Usuario no encontrado') ||
+          msg.contains('Mascota no encontrada')) {
+        finalErrorMsg =
+            'Error de datos: Usuario o mascota no encontrados en el servidor. Por favor, verifique su sesión e intente nuevamente.';
+      } else if (msg.contains('Acceso denegado')) {
+        finalErrorMsg = msg;
       } else {
-        _errorMessage = 'Error en la búsqueda: $msg';
+        finalErrorMsg = 'Error en la búsqueda: $msg';
+      }
+
+      // 💡 CORRECCIÓN 2: Actualizar _errorMessage en el estado SÓLO si está montado
+      if (mounted) {
+        setState(() {
+          _errorMessage = finalErrorMsg;
+          // Note: _isLoading se manejará en el bloque finally
+        });
       }
     } finally {
+      // 💡 CORRECCIÓN 3: Asegurar que _isLoading se desactive siempre (si está montado)
       if (mounted) {
         setState(() {
           _isLoading = false;
