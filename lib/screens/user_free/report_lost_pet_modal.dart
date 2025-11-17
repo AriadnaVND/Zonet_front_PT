@@ -8,12 +8,14 @@ class ReportLostPetModal extends StatefulWidget {
   final int userId;
   final Pet pet;
   final VoidCallback onReportSent;
+  final LatLng? initialCoordinates;
 
   const ReportLostPetModal({
     super.key,
     required this.userId,
     required this.pet,
     required this.onReportSent,
+    this.initialCoordinates,
   });
 
   @override
@@ -40,6 +42,20 @@ class _ReportLostPetModalState extends State<ReportLostPetModal> {
     _descriptionController.dispose();
     _hoursLostController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCoordinates != null) {
+      // <-- LÓGICA DE AUTO-LLENADO
+      _lastSeenCoordinates = widget.initialCoordinates!;
+      // Dispara la geocodificación para obtener la dirección legible
+      _fetchAddressFromCoordinates(
+        _lastSeenCoordinates.latitude,
+        _lastSeenCoordinates.longitude,
+      );
+    }
   }
 
   // --- Geocodificación Inversa (De LatLng a Dirección) ---

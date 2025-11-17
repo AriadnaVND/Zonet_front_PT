@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
@@ -40,14 +42,22 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
   PetLocation? _currentPetLocation;
   bool _isLocationLoading = true;
   String? _locationError;
+  Timer? _realTimeTimer;
 
   @override
   void initState() {
     super.initState();
     timeago.setLocaleMessages('es', timeago.EsMessages());
     _fetchPetLocation();
-    // 💡 Para simular el rastreo en tiempo real, puedes iniciar un timer aquí
-    // Timer.periodic(Duration(seconds: 10), (Timer t) => _fetchPetLocation());
+    _realTimeTimer = Timer.periodic(const Duration(seconds: 10), (Timer t) {
+      _fetchPetLocation();
+    });
+  }
+
+  @override
+  void dispose() {
+    _realTimeTimer?.cancel(); // <-- Importante: Cancela el timer al salir
+    super.dispose();
   }
 
   Future<void> _fetchPetLocation() async {
@@ -80,8 +90,17 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
     }
   }
 
-  // 🟢 NUEVO MÉTODO: Mostrar el modal de reporte
+  // 🟢 MODIFICACIÓN: Lógica para pasar la última ubicación al modal de reporte
   void _showReportModal() async {
+    // Determinar la última ubicación válida del dispositivo
+    LatLng? initialCoords;
+    if (_currentPetLocation != null) {
+      initialCoords = LatLng(
+        _currentPetLocation!.latitude,
+        _currentPetLocation!.longitude,
+      );
+    }
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -93,8 +112,8 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
           child: ReportLostPetModal(
             userId: widget.user.id!,
             pet: widget.pet,
-            // Al enviar el reporte con éxito, refrescamos el estado del mapa
             onReportSent: _fetchPetLocation,
+            initialCoordinates: initialCoords, // <-- PASA LA ÚLTIMA UBICACIÓN
           ),
         );
       },
