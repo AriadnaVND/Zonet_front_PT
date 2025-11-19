@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import 'profile_settings_screen.dart';
 import 'notification_settings_screen.dart';
 import 'subscription_screen.dart';
+import 'support_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final User user;
@@ -197,7 +198,13 @@ class SettingsScreen extends StatelessWidget {
           title: 'Ayuda Y Soporte',
           subtitle: 'Obtén Ayuda Y Contacta Con El Soporte Técnico',
           onTap: () {
-            // TODO: Implementar navegación a Ayuda/Soporte
+            // 🟢 NAVEGACIÓN A AYUDA Y SOPORTE
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SupportScreen(user: user),
+              ),
+            );
           },
         ),
       ],

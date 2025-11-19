@@ -211,4 +211,26 @@ class CommunityService {
       );
     }
   }
+
+  // 7. 🟢 NUEVO: Marcar Reporte de Mascota Perdida como encontrado (PUT /api/pets/lost/{reportId}/found)
+  Future<void> markAsFound(int postId) async {
+    // Nota: El backend requiere el ID del *reporte* de mascota perdida (LostPet ID).
+    // Asumimos que el postId de la comunidad es el mismo que el reportId en este contexto para simplificar.
+    final url = Uri.parse(
+      _authService.getPetBaseUrl().replaceFirst('/api/pets', '/api/pets/lost/$postId/found'),
+    );
+
+    try {
+      final response = await http.put(url);
+
+      if (response.statusCode != 200) {
+        final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception(
+          errorBody['message'] ?? 'Fallo al marcar el reporte como encontrado.',
+        );
+      }
+    } catch (e) {
+      throw Exception('Fallo de conexión al servicio de reportes: ${e.toString()}');
+    }
+  }
 }

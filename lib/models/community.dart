@@ -13,6 +13,9 @@ class CommunityPost {
   final int totalComments; // Cantidad de comentarios
   final bool userReacted; // Indica si el usuario actual ya reaccionó
 
+  final List<dynamic>? comments; 
+  final List<dynamic>? reactions;
+
   CommunityPost({
     required this.id,
     required this.postType,
@@ -26,9 +29,15 @@ class CommunityPost {
     required this.totalReactions,
     required this.totalComments,
     required this.userReacted,
+    this.comments, 
+    this.reactions,
   });
 
   factory CommunityPost.fromJson(Map<String, dynamic> json) {
+
+    final List<dynamic> commentsList = json['comments'] ?? [];
+    final List<dynamic> reactionsList = json['reactions'] ?? [];
+
     return CommunityPost(
       id: json['id'] as int,
       postType: json['postType'] as String,
@@ -47,6 +56,9 @@ class CommunityPost {
       // NOTA: 'userReacted' se debe calcular en el frontend o con un DTO más avanzado.
       // Por simplicidad inicial, dejaremos el valor en 'false' y lo actualizamos luego.
       userReacted: false,
+
+      comments: commentsList, 
+      reactions: reactionsList,
     );
   }
 }

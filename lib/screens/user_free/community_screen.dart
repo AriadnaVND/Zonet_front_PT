@@ -9,6 +9,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'add_comment_screen.dart';
 import 'report_lost_pet_modal.dart';
 import '../community_ai_matching_modal.dart';
+import '../plans/choose_plan_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   final User user;
@@ -149,6 +150,46 @@ class _CommunityScreenState extends State<CommunityScreen> {
     }
   }
 
+  // 💡 COMPLEMENTO CRÍTICO: Método para llamar al servicio de Marcar como Encontrado
+  Future<void> _markAsFound(int postId) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      // Llama al servicio que utiliza el endpoint PUT /api/pets/lost/{reportId}/found
+      await _communityService.markAsFound(postId);
+      _showSnackbar(
+        '¡Felicidades! Mascota marcada como encontrada.',
+        isError: false,
+      );
+      _fetchPosts(); // Recarga el feed para que la publicación desaparezca
+    } catch (e) {
+      _showSnackbar(
+        'Error al marcar como encontrado: ${e.toString().replaceFirst('Exception: ', '')}',
+        isError: true,
+      );
+      // Solo desactiva la carga si hubo un error
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 🟢 Lógica de Navegación para ir a la pantalla de planes (si es FREE)
+  void _navigateToPlansScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChoosePlanScreen(
+          userId: widget.user.id!,
+          petName: widget.pet.name,
+          imageFile: null,
+          existingPhotoUrl: widget.pet.photoUrl,
+        ),
+      ),
+    );
+  }
+
   // --- Lógica para el botón de AI Matching (SOLO Premium) ---
   void _handleAiMatching() {
     final isPremium = widget.user.plan?.toUpperCase() == 'PREMIUM';
@@ -169,7 +210,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         'AI Matching es una función exclusiva para usuarios Premium.',
         isError: true,
       );
-      // Opcional: Redirigir a la pantalla de planes si es Free.
+      _navigateToPlansScreen();
     }
   }
 
@@ -212,47 +253,56 @@ class _CommunityScreenState extends State<CommunityScreen> {
   Widget _buildAiMatchingButton() {
     final isPremium = widget.user.plan?.toUpperCase() == 'PREMIUM';
     const Color primaryColor = Color(0xFF00ADB5);
+    const Color accentColor = Color(0xFF547C87); // Tono secundario del diseño
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-      padding: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
       decoration: BoxDecoration(
-        color: isPremium
-            ? primaryColor.withOpacity(0.8)
-            : Colors.blueGrey.shade400, // Color de fondo del botón
+        color: isPremium ? primaryColor : accentColor.withOpacity(0.8),
         borderRadius: BorderRadius.circular(15),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Emparejamiento De Mascotas Con IA',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            // 💡 Llama a la lógica de navegación
-            onPressed: _handleAiMatching,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isPremium ? Colors.white : Colors.grey.shade600,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: Text(
-              'PROBAR',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isPremium ? primaryColor : Colors.white,
-              ),
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _handleAiMatching,
+          borderRadius: BorderRadius.circular(15),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'AI Matching',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      isPremium
+                          ? 'Encuentra mascotas perdidas con IA.'
+                          : 'Exclusivo Premium. ¡Mejora tu plan!',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+                Icon(Icons.smart_toy_outlined, color: Colors.white, size: 30),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -268,6 +318,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
     // Lógica para mostrar la hora
     final timeAgo = timeago.format(post.createdAt, locale: 'es');
+
+    // 💡 LÓGICA REFINADA: Determinar si es una alerta de pérdida y si el usuario actual es el autor.
+    final bool isLostAlert = post.postType == 'LOST_ALERT';
+    // Compara el nombre completo, asumiendo que el nombre completo es único en el contexto del usuario.
+    // (Idealmente se usaría post.userId == widget.user.id!)
+    final bool isMyLostAlert = isLostAlert && post.userName == widget.user.name;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 20.0),
@@ -287,7 +343,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${post.userName.split(' ').first} M.', // Usar solo el primer nombre + inicial
+                      // Muestra solo el primer nombre y la inicial del apellido
+                      '${post.userName.split(' ').first} ${post.userName.split(' ').length > 1 ? post.userName.split(' ')[1].substring(0, 1) + '.' : ''}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -334,35 +391,66 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
             const SizedBox(height: 10),
 
-            // Pie de Post (Comentarios y Reacciones)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Pie de Post (Comentarios, Reacciones y Botón Condicional)
+            Column(
               children: [
-                TextButton.icon(
-                  // 🟢 NAVEGACIÓN A COMENTARIOS
-                  onPressed: () => _navigateToCommentScreen(post),
-                  icon: const Icon(
-                    Icons.comment_outlined,
-                    size: 18,
-                    color: Colors.grey,
-                  ),
-                  label: Text(
-                    '${post.totalComments} Comentario${post.totalComments != 1 ? 's' : ''}',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _navigateToCommentScreen(post),
+                      icon: const Icon(
+                        Icons.comment_outlined,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                      label: Text(
+                        '${post.totalComments} Comentario${post.totalComments != 1 ? 's' : ''}',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _handleToggleReaction(post),
+                      icon: Icon(
+                        post.userReacted
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        size: 18,
+                        color: post.userReacted ? Colors.red : Colors.grey,
+                      ),
+                      label: Text(
+                        '${post.totalReactions} Reaccion${post.totalReactions != 1 ? 'es' : ''}',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ],
                 ),
-                TextButton.icon(
-                  onPressed: () => _handleToggleReaction(post),
-                  icon: Icon(
-                    post.userReacted ? Icons.favorite : Icons.favorite_border,
-                    size: 18,
-                    color: post.userReacted ? Colors.red : Colors.grey,
+
+                // 💡 BOTÓN "MARCAR COMO ENCONTRADO"
+                if (isMyLostAlert)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10.0),
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading
+                          ? null
+                          : () => _markAsFound(post.id),
+                      icon: Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white,
+                      ),
+                      label: Text(
+                        'MARCAR COMO ENCONTRADO',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        minimumSize: Size(double.infinity, 40),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
                   ),
-                  label: Text(
-                    '${post.totalReactions} Reaccion${post.totalReactions != 1 ? 'es' : ''}',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
               ],
             ),
           ],

@@ -59,7 +59,6 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       });
     }
   }
-  
 
   // --- Widgets Auxiliares ---
 
@@ -127,43 +126,56 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            notif.title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: isUrgent
-                                  ? Colors.red.shade700
-                                  : Colors.black87,
-                            ),
-                          ),
-                          // Etiqueta Urgente
-                          if (isUrgent)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Text(
-                                'Urgente',
+                      Expanded(
+                        // <--- CLAVE 2: Contenedor expandido para el título
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              // Permite que el título se ajuste al espacio restante
+                              child: Text(
+                                notif.title,
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isUrgent
+                                      ? Colors.red.shade700
+                                      : Colors.black87,
+                                ),
+                                maxLines: 2, // Permite 2 líneas si es necesario
+                                overflow:
+                                    TextOverflow.ellipsis, // Corta con "..."
+                              ),
+                            ),
+                            // Etiqueta Urgente
+                            if (isUrgent)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  'Urgente',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
-                      // Tiempo desde la notificación
+
+                      const SizedBox(width: 8), // Pequeño espacio
+                      // Tiempo desde la notificación (Tamaño fijo)
                       Text(
                         timeago.format(notif.createdAt, locale: 'es'),
                         style: TextStyle(color: Colors.grey, fontSize: 10),
@@ -171,10 +183,13 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  // Mensaje / Subtítulo
+                  // Fila 2: Mensaje / Subtítulo
                   Text(
                     notif.message,
                     style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+                    maxLines:
+                        2, // Permite 2 líneas para que el mensaje se lea mejor
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
 
@@ -188,13 +203,16 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                           color: primaryColor,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          // NOTA: El DTO actual no devuelve la ubicación exacta,
-                          // pero la simulamos basándonos en la imagen.
-                          '${notif.type == 'LOST_ALERT' ? 'Central Park' : 'Riverside Park'}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
+                        Expanded(
+                          child: Text(
+                            // NOTA: El DTO actual no devuelve la ubicación exacta,
+                            // pero la simulamos basándonos en la imagen.
+                            '${notif.type == 'LOST_ALERT' ? 'Kikitikmeot Region, Canadá' : 'Riverside Park'}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 15),

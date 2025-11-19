@@ -435,7 +435,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   // 2. Sección de Seguridad
                   _buildSectionCard(
                     primaryColor: primaryColor,
-                    title: 'Seguridad (Cambiar Contraseña)',
+                    title: 'Cambiar Contraseña',
                     titleIcon: Icons.lock_outline,
                     isEditing: _isEditingSecurity,
                     onEditPressed: () =>
