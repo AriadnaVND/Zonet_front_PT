@@ -149,13 +149,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Positioned(
                     bottom: -1,
                     child: Container(
-                      height: 50,
+                      height: 20,
                       width: size.width,
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(50),
-                          topRight: Radius.circular(50),
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
                         ),
                       ),
                     ),
@@ -177,15 +177,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: <Widget>[
                     const Center(
                       child: Text(
-                        'Comencemos!',
+                        '!Bienvenidos!',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
                           color: primaryColor,
                         ),
                       ),
                     ),
-                    const Divider(color: Colors.grey, thickness: 1, height: 30),
+                    const Divider(color: Colors.white, thickness: 2, height: 30),
                     const Padding(
                       padding: EdgeInsets.only(bottom: 15.0),
                       child: Text(

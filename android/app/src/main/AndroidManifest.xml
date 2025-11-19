@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="zoonet_front"
+        android:label="Zonnet"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
 
@@ -36,7 +36,7 @@
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="$[GOOGLE_MAPS_API_KEY_VAR]" />
+            android:value="AIzaSyDnDtlZ-aLv63nfk1VV01Fa9ui7BAxRAXM" />
 
         <meta-data
             android:name="flutterEmbedding"

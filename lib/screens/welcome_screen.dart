@@ -8,7 +8,8 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF00ADB5); // Color turquesa del diseño
+    const Color primaryColor = Color(0xFF1BBCB6); // Color turquesa del diseño
+    const Color darkBorderColor = Color(0xFF007E7A);
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -19,18 +20,19 @@ class WelcomeScreen extends StatelessWidget {
           Positioned(
             // La imagen se posiciona en la parte inferior de la pantalla
             bottom: 0,
+            width: size.width,
             child: Image.asset(
               'assets/images/welcome.png', // Usa la imagen que hemos estado referenciando
               width: size.width,
               // Ajusta la altura de la imagen para que cubra la parte inferior como en el diseño
-              height: size.height * 0.75,
+              height: size.height * 0.50,
               fit: BoxFit.cover,
             ),
           ),
 
           // 2. Contenido Superior (Texto y Botón)
           Positioned(
-            top: size.height * 0.15, // Posicionamiento desde arriba
+            top: size.height * 0.20, // Posicionamiento desde arriba
             width: size.width,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40.0),
@@ -43,7 +45,7 @@ class WelcomeScreen extends StatelessWidget {
                     '¡CUIDA A TU MEJOR AMIGO!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
+                      fontSize: 30,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       shadows: [Shadow(blurRadius: 5.0, color: Colors.black38)],
@@ -53,9 +55,9 @@ class WelcomeScreen extends StatelessWidget {
                   // Subtítulo
                   const SizedBox(height: 5),
                   const Text(
-                    'Vigilar A Tu Mascota',
+                    'Vigila a Tu Mascota',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18, color: Colors.white70),
+                    style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.w300,),
                   ),
 
                   // Botón "¡Vamos!"
@@ -71,7 +73,7 @@ class WelcomeScreen extends StatelessWidget {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
+                      backgroundColor: darkBorderColor,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 40,
                         vertical: 12,
@@ -80,8 +82,8 @@ class WelcomeScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(30),
                         // Borde turquesa más oscuro para el efecto 'popup'
                         side: const BorderSide(
-                          color: Color(0xFF008C95),
-                          width: 3,
+                          color: Colors.white,
+                          width: 1,
                         ),
                       ),
                       elevation: 10,
@@ -89,7 +91,7 @@ class WelcomeScreen extends StatelessWidget {
                     child: const Text(
                       '¡Vamos!',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),

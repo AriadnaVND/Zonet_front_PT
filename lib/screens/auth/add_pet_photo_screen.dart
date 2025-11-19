@@ -86,7 +86,6 @@ class _AddPetPhotoScreenState extends State<AddPetPhotoScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Foto'),
         backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
@@ -101,7 +100,7 @@ class _AddPetPhotoScreenState extends State<AddPetPhotoScreen> {
             children: <Widget>[
               // Título
               const Text(
-                'Añade La Foto De Tu Mascota',
+                'Añade la foto de tu mascota',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -111,7 +110,7 @@ class _AddPetPhotoScreenState extends State<AddPetPhotoScreen> {
               ),
               const SizedBox(height: 5),
               const Text(
-                'Ayúdanos A Mantener\nSeguro A Tu Amigo/A Peludo',
+                'Ayúdanos a mantener\nSeguro a tu amigo/a peludo',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),

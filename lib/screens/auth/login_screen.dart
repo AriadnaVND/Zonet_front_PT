@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
           children: <Widget>[
             // Sección superior con la imagen y la curva (adaptado para el diseño de Login)
             Container(
-              height: size.height * 0.40,
+              height: size.height * 0.50,
               width: size.width,
               decoration: const BoxDecoration(color: primaryColor),
               child: Stack(
@@ -178,6 +178,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   Positioned.fill(
                     child: Image.asset(
                       'assets/images/login.png', // Mantenemos esta ruta por consistencia
+                      width: size.width,
+                      height: size.height * 0.50,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -185,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Positioned(
                     bottom: -1,
                     child: Container(
-                      height: 50,
+                      height: 25,
                       width: size.width,
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -232,7 +234,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Divider(color: Colors.grey, thickness: 1, height: 30),
 
                     // Campos de texto: Email (usado en lugar de Nombre para login)
                     _buildTextField(
