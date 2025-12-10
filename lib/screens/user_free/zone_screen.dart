@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+// 💡 IMPORTACIÓN NECESARIA PARA MAPAS
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
 import '../../models/zone.dart';
 import '../../services/zone_service.dart';
-import '../plans/choose_plan_screen.dart'; // Para redirigir a planes
-import 'add_zone_screen.dart'; // Para agregar una nueva zona
+import '../plans/choose_plan_screen.dart';
+import 'add_zone_screen.dart';
 
 class ZoneScreen extends StatefulWidget {
   final User user;
-  final Pet pet; // Necesario si quieres mostrar datos de la mascota o ubicación
+  final Pet pet;
 
   const ZoneScreen({super.key, required this.user, required this.pet});
 
@@ -18,9 +20,16 @@ class ZoneScreen extends StatefulWidget {
 
 class _ZoneScreenState extends State<ZoneScreen> {
   final ZoneService _zoneService = ZoneService();
+
+  // Base de datos de zonas (Contiene todas las zonas del usuario)
   List<Zone> _safeZones = [];
   bool _isLoading = true;
-  final int _maxZones = 1; // Para el plan FREE
+  final int _maxZones = 1; // Límite para el plan FREE
+
+  // Variables del mapa
+  GoogleMapController? _mapController;
+  Set<Circle> _circles = {};
+  Set<Marker> _markers = {};
 
   @override
   void initState() {
@@ -28,21 +37,83 @@ class _ZoneScreenState extends State<ZoneScreen> {
     _fetchZones();
   }
 
+  // ------------------------------------------
+  // LÓGICA DE MAPA Y DATOS
+  // ------------------------------------------
+
+  // 💡 FUNCIÓN PRINCIPAL: Actualiza los marcadores y círculos del mapa
+  void _updateMapElements() {
+    _circles.clear();
+    _markers.clear();
+
+    // Posición por defecto si no hay zonas (se puede cambiar a la ubicación del usuario/mascota si está disponible)
+    LatLng initialCenter = const LatLng(40.7128, -74.0060); // Ejemplo: NY
+
+    if (_safeZones.isNotEmpty) {
+      final firstZone = _safeZones.first;
+      initialCenter = LatLng(firstZone.latitude, firstZone.longitude);
+
+      for (var zone in _safeZones) {
+        final LatLng center = LatLng(zone.latitude, zone.longitude);
+
+        // 1. Agregar el círculo (la zona segura)
+        _circles.add(
+          Circle(
+            circleId: CircleId(zone.id.toString()),
+            center: center,
+            radius: zone.radius.toDouble(),
+            strokeWidth: 2,
+            strokeColor: const Color(0xFF00ADB5),
+            fillColor: const Color(0xFF00ADB5).withOpacity(0.15),
+          ),
+        );
+
+        // 2. Agregar el marcador (el puntero)
+        _markers.add(
+          Marker(
+            markerId: MarkerId(zone.id.toString()),
+            position: center,
+            infoWindow: InfoWindow(
+              title: zone.name,
+              snippet: 'Radio: ${zone.radius.toInt()}m',
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueAzure,
+            ),
+          ),
+        );
+      }
+
+      // Mover la cámara a la primera zona
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(initialCenter, 14),
+      );
+    }
+  }
+
   Future<void> _fetchZones() async {
+    setState(() => _isLoading = true);
     try {
+      // Nota: El método en ZoneService es fetchSafeZones, lo mantengo así
       final zones = await _zoneService.fetchSafeZones(widget.user.id!);
-      setState(() {
-        _safeZones = zones;
-        _isLoading = false;
-      });
+
+      if (mounted) {
+        setState(() {
+          _safeZones = zones;
+          _updateMapElements(); // 💡 ACTUALIZA MAPA
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       _showSnackbar(
         'Error al cargar zonas: ${e.toString().replaceFirst('Exception: ', '')}',
         isError: true,
       );
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -50,7 +121,7 @@ class _ZoneScreenState extends State<ZoneScreen> {
     try {
       await _zoneService.deleteSafeZone(zoneId);
       _showSnackbar('Zona eliminada correctamente.', isError: false);
-      _fetchZones(); // Refresca la lista
+      _fetchZones();
     } catch (e) {
       _showSnackbar(
         'Error al eliminar zona: ${e.toString().replaceFirst('Exception: ', '')}',
@@ -70,90 +141,183 @@ class _ZoneScreenState extends State<ZoneScreen> {
     }
   }
 
-  // --- Widgets Auxiliares ---
+  // ------------------------------------------
+  // WIDGETS AUXILIARES REFACTORIZADOS
+  // ------------------------------------------
 
-  // Tarjeta Plan Premium (Primera Pantalla)
-  Widget _buildPremiumCard(Color primaryColor) {
-    // 💡 Lógica del límite para plan FREE
-    final currentZones = _safeZones.length;
-    final maxZonesDisplay = widget.user.plan?.toUpperCase() == 'FREE'
-        ? '1'
-        : 'Ilimitadas';
-    final progress = currentZones / _maxZones;
-    final isMaxReached =
-        currentZones >= _maxZones && widget.user.plan?.toUpperCase() == 'FREE';
+  // 💡 NUEVO WIDGET: Reemplaza _buildPremiumCard (Muestra estado y permite mejorar)
+  Widget _buildZoneStatusIndicator(bool isPremium, Color primaryColor) {
+    final int zoneCount = _safeZones.length;
+    final int maxZones = isPremium ? 999 : _maxZones;
+    final String statusText;
+    final Color statusColor;
 
-    return GestureDetector(
-      onTap: () {
-        // Redirigir a la pantalla de planes
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChoosePlanScreen(
-              userId: widget.user.id!,
-              petName: widget.pet.name,
-              imageFile: null,
-              existingPhotoUrl: widget.pet.photoUrl,
+    if (isPremium) {
+      statusText = '$zoneCount Zonas Seguras Guardadas (PREMIUM)';
+      statusColor = Colors.green.shade600;
+    } else {
+      if (zoneCount >= maxZones) {
+        statusText = '$zoneCount Zona Segura Guardada (Límite FREE)';
+        statusColor = Colors.red.shade700;
+      } else {
+        statusText = '$zoneCount/$maxZones Zonas Guardadas (FREE)';
+        statusColor = Colors.orange.shade700;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+      margin: const EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(15.0),
+        border: Border.all(color: statusColor, width: 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Icon(Icons.shield_outlined, color: statusColor, size: 20),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: Text(
+                statusText,
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
             ),
           ),
-        );
-      },
-      child: Card(
-        color: isMaxReached
-            ? Colors.red[50]
-            : Colors.amber[50], // Fondo de advertencia si está lleno
-        elevation: 2,
-        margin: const EdgeInsets.only(bottom: 16.0),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15.0),
-          side: BorderSide(
-            color: isMaxReached ? Colors.red : Colors.amber[700]!,
-            width: 1.5,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Plan Premium',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$currentZones/$maxZonesDisplay Zona${currentZones != 1 ? 's' : ''} Guardada${currentZones != 1 ? 's' : ''}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 8),
-                  // Barra de progreso visual
-                  Container(
-                    width: 150,
-                    height: 8,
-                    child: LinearProgressIndicator(
-                      value: widget.user.plan?.toUpperCase() == 'FREE'
-                          ? progress
-                          : 0.0, // Solo muestra progreso en FREE
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        isMaxReached ? Colors.red : primaryColor,
-                      ),
+          // Botón Mejorar si no es premium
+          if (!isPremium)
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChoosePlanScreen(
+                      userId: widget.user.id!,
+                      petName: widget.pet.name,
+                      imageFile: null,
+                      existingPhotoUrl: widget.pet.photoUrl,
                     ),
                   ),
-                ],
+                );
+              },
+              child: Text(
+                'Mejorar',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              Icon(Icons.shield_outlined, color: primaryColor, size: 30),
-            ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  // 💡 NUEVO WIDGET: Contiene la lógica del mapa y los elementos cargados
+  Widget _buildMap() {
+    LatLng initialCenter = const LatLng(40.7128, -74.0060); // Default
+
+    if (_safeZones.isNotEmpty) {
+      final firstZone = _safeZones.first;
+      initialCenter = LatLng(firstZone.latitude, firstZone.longitude);
+    }
+
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: GoogleMap(
+            // La cámara inicial debe ser donde está el marcador de zona
+            initialCameraPosition: CameraPosition(
+              target: initialCenter,
+              zoom: 12,
+            ),
+            onMapCreated: (controller) {
+              _mapController = controller;
+              _updateMapElements();
+            },
+            markers: _markers, // Muestra los marcadores de las zonas
+            circles: _circles, // Muestra los círculos de las zonas
+            zoomControlsEnabled: true,
+            myLocationButtonEnabled: false,
           ),
         ),
       ),
     );
   }
 
-  // Widget para mostrar una zona guardada
+  // 💡 WIDGET MODIFICADO: Encabezado y botón añadir zona
+  Widget _buildAddZoneButton(Color primaryColor) {
+    final isPremium = widget.user.plan?.toUpperCase() == 'PREMIUM';
+    final bool canAddZone = isPremium || _safeZones.length < _maxZones;
+
+    String buttonText = 'AÑADIR ZONA SEGURA';
+    if (!isPremium) {
+      if (!canAddZone) {
+        buttonText = 'Límite alcanzado';
+      } else {
+        buttonText = 'AÑADIR ZONA SEGURA';
+      }
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Tus Zonas Seguras',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+
+        // Botón Agregar Zona
+        ElevatedButton.icon(
+          onPressed: canAddZone
+              ? () async {
+                  // Asegurarse de refrescar la lista al volver
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddZoneScreen(
+                        userId: widget.user.id!,
+                        onZoneAdded: _fetchZones,
+                      ),
+                    ),
+                  );
+                  _fetchZones();
+                }
+              : null, // Deshabilitado si no puede agregar
+          icon: const Icon(Icons.add, size: 20, color: Colors.white),
+          label: Text(buttonText, style: const TextStyle(color: Colors.white)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            minimumSize: Size.zero,
+            elevation: 0,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Widget para mostrar una zona guardada (se mantiene igual)
   Widget _buildZoneCard(Zone zone, Color primaryColor) {
     return Card(
       elevation: 0,
@@ -197,6 +361,7 @@ class _ZoneScreenState extends State<ZoneScreen> {
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF00ADB5);
+    final isPremium = widget.user.plan?.toUpperCase() == 'PREMIUM';
 
     return Scaffold(
       appBar: AppBar(
@@ -215,7 +380,7 @@ class _ZoneScreenState extends State<ZoneScreen> {
           ),
         ],
       ),
-      backgroundColor: const Color(0xFFEEEEEE), // Fondo gris de la imagen
+      backgroundColor: const Color(0xFFEEEEEE),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -223,11 +388,11 @@ class _ZoneScreenState extends State<ZoneScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildPremiumCard(primaryColor),
+                  // 💡 INDICADOR DE ESTADO (Reemplaza _buildPremiumCard)
+                  _buildZoneStatusIndicator(isPremium, primaryColor),
 
-                  // Ubicación Reciente (simulando ubicación del collar)
                   const Text(
-                    'Ubicación Reciente',
+                    'Ubicación en el Mapa',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -235,80 +400,15 @@ class _ZoneScreenState extends State<ZoneScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.location_pin,
-                        color: Colors.red,
-                        size: 40,
-                      ),
-                      // TODO: Integrar un mapa (Google Maps/MapBox) aquí para la ubicación real.
-                    ),
-                  ),
+
+                  // 💡 MAPA CON MARCADORES/CÍRCULOS
+                  _buildMap(),
 
                   const SizedBox(height: 20),
 
-                  // Encabezado de la lista de zonas y botón
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Tus Zonas Seguras',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
+                  // ENCABEZADO Y BOTÓN AÑADIR ZONA
+                  _buildAddZoneButton(primaryColor),
 
-                      // Botón Agregar Zona (Deshabilitado si se alcanzó el límite FREE)
-                      ElevatedButton.icon(
-                        onPressed: _safeZones.length < _maxZones
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AddZoneScreen(
-                                      userId: widget.user.id!,
-                                      onZoneAdded:
-                                          _fetchZones, // Callback para refrescar la lista
-                                    ),
-                                  ),
-                                );
-                              }
-                            : null, // Deshabilitado
-                        icon: const Icon(
-                          Icons.add,
-                          size: 20,
-                          color: Colors.white,
-                        ),
-                        label: const Text(
-                          'Agregar Zona',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          minimumSize:
-                              Size.zero, // Ajustar el tamaño al contenido
-                          elevation: 0,
-                        ),
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 10),
 
                   // Lista de Zonas Guardadas

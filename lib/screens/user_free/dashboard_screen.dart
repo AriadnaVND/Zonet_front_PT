@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../models/pet.dart';
@@ -36,6 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   PetLocation? _currentPetLocation;
   bool _isLocationLoading = true;
   String? _locationError;
+  Timer? _realTimeTimer;
 
   @override
   void initState() {
@@ -45,6 +47,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       timeago.EsMessages(),
     ); // Asegurar que timeago esté en español
     _fetchPetLocation();
+    // 💡 INICIAR TEMPORIZADOR DE RECARGA CADA 10 SEGUNDOS (LÓGICA PREMIUM)
+    _realTimeTimer = Timer.periodic(const Duration(seconds: 10), (Timer t) {
+      _fetchPetLocation();
+    });
+  }
+
+  @override
+  void dispose() {
+    _realTimeTimer?.cancel(); // 💡 CANCELAR EL TEMPORIZADOR AL SALIR
+    super.dispose();
   }
 
   // NUEVO MÉTODO: Obtener la ubicación de la mascota del backend
@@ -82,6 +94,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // 🟢 NUEVO MÉTODO: Mostrar el modal de reporte
   void _showReportModal() async {
+    LatLng? initialCoords;
+    if (_currentPetLocation != null) {
+      initialCoords = LatLng(
+        _currentPetLocation!.latitude,
+        _currentPetLocation!.longitude,
+      );
+    }
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -95,6 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             pet: widget.pet,
             // Al enviar el reporte con éxito, refrescamos el estado del mapa
             onReportSent: _fetchPetLocation,
+            initialCoordinates: initialCoords,
           ),
         );
       },
