@@ -1,3 +1,10 @@
+
+plugins {
+    // Asegúrate de usar la última versión. 4.4.1 es un ejemplo reciente.
+    // El 'apply false' es CORRECTO aquí.
+    id("com.google.gms.google-services") version "4.4.1" apply false 
+}
+
 allprojects {
     repositories {
         google()

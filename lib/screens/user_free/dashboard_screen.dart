@@ -5,6 +5,7 @@ import '../../models/pet.dart';
 import '../../models/location.dart';
 import '../../services/auth_service.dart';
 import '../../services/tracker_service.dart';
+import '../../services/notification_service.dart';
 import 'zone_screen.dart';
 import 'community_screen.dart';
 import 'settings_screen.dart';
@@ -33,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
   final AuthService _authService = AuthService();
   final TrackerService _trackerService = TrackerService();
+  final NotificationService _notificationService = NotificationService();
 
   PetLocation? _currentPetLocation;
   bool _isLocationLoading = true;
@@ -51,6 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _realTimeTimer = Timer.periodic(const Duration(seconds: 10), (Timer t) {
       _fetchPetLocation();
     });
+    _notificationService.initNotifications();
   }
 
   @override
