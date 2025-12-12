@@ -37,11 +37,11 @@ class NotificationService {
     );
   }
 
-  String _getUserBaseUrl() {
+  String _getUserProfileBaseUrl() {
     // Apunta al controlador de usuarios, donde se debe registrar el token
     return _authService.getPetBaseUrl().replaceFirst(
       '/api/pets',
-      '/api/users', // Asumo que el endpoint de usuario es /api/users
+      '/api/user/profile', // Corregido para coincidir con el @RequestMapping del backend
     );
   }
 
@@ -163,36 +163,42 @@ class NotificationService {
       final jwtToken = prefs.getString('jwtToken'); // Asumo que guardas el JWT
 
       if (userId != null && jwtToken != null) {
-        final url = Uri.parse(
-          '${_getUserBaseUrl()}/$userId/fcmToken',
-        ); // Endpoint esperado: /api/users/{userId}/fcmToken
+        // 🟢 CORRECCIÓN 2: Usar la nueva función de URL y el endpoint correcto (/api/user/profile/{userId}/fcm-token)
+        final url = Uri.parse('${_getUserProfileBaseUrl()}/$userId/fcm-token');
+
+        print('URL DE REGISTRO FCM: $url');
 
         try {
-          final response = await http.post(
+          // 🟢 CORRECCIÓN 3: Cambiar http.post por http.put (El backend usa @PutMapping)
+          final response = await http.put(
             url,
             headers: <String, String>{
               'Content-Type': 'application/json; charset=UTF-8',
               'Authorization': 'Bearer $jwtToken', // Autenticación con JWT
             },
-            // El token se envía en el cuerpo de la solicitud en formato JSON
-            body: jsonEncode({'fcmToken': token}),
+            // 🟢 CORRECCIÓN 4: Cambiar la clave de 'fcmToken' a 'token' (El backend espera 'token')
+            body: jsonEncode({'token': token}),
           );
 
           if (response.statusCode == 200) {
             print('Token FCM enviado al backend exitosamente.');
           } else {
             print(
-              'Fallo al enviar el token FCM al backend: Código ${response.statusCode}. Respuesta: ${response.body}',
+              'FALLO CRÍTICO DE REGISTRO DE TOKEN: Código ${response.statusCode}. Respuesta: ${response.body}',
             );
           }
         } catch (e) {
-          print('Excepción al enviar el token FCM: $e');
+          print('Excepción de Red/Conexión al enviar el token FCM: $e');
         }
       } else {
         print(
           'Advertencia: userId o jwtToken no disponibles. No se envió el token FCM.',
         );
       }
+    } else {
+      print(
+        'Advertencia: Firebase no pudo obtener el token FCM del dispositivo.',
+      );
     }
   }
 
