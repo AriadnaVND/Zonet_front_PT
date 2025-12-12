@@ -95,7 +95,7 @@ android/app/src/main/AndroidManifest.xml
 ```xml
 <meta-data
     android:name="com.google.android.geo.API_KEY"
-    android:value="AIzaSyDnDtlZ-aLv63nfk1VV01Fa9ui7BAxRAXM" />
+    android:value="COLOCAR EL API CORRESPONDIENTE" />
 ```
 
 ##### **Web**
